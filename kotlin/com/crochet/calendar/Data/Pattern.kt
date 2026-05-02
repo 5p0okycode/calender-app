@@ -1,6 +1,12 @@
 package com.crochet.calendar
 
- //to store list string
+import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
+
+//to store list string
 class Converters {
     @TypeConverter
     fun fromStringList(list: List<String>): String =
@@ -9,15 +15,23 @@ class Converters {
     @TypeConverter
     fun toStringList(value: String): List<String> =
         if (value.isBlank()) emptyList() else value.split("||")
+
+    @TypeConverter
+    fun fromIntList(list: List<Int>): String =
+        list.joinToString(",")
+
+    @TypeConverter
+    fun toIntList(value: String): List<Int> =
+        if (value.isBlank()) emptyList() else value.split(",").mapNotNull { it.toIntOrNull() }
 }
 
 @Entity(
-    tableName = "events"
-            foreignKeys = [ForeignKey(
+    tableName = "events",
+    foreignKeys = [ForeignKey(
         entity        = Project::class,
         parentColumns = ["id"],
         childColumns  = ["projectId"],
-        onDelete      = ForeignKey.CASCADE
+        onDelete      = ForeignKey.SET_NULL
     )],
     indices = [Index("projectId")])
 data class Event(
@@ -32,22 +46,23 @@ data class Event(
     val projectId: Int?          = null   // optional
 )
 
-@entity(
-    tableName = "projects"
-            foreignKeys = [ForeignKey(
+@Entity(
+    tableName = "projects",
+    foreignKeys = [ForeignKey(
         entity        = Pattern::class,
         parentColumns = ["id"],
         childColumns  = ["patternId"],
         onDelete      = ForeignKey.CASCADE
-    )]
-            indices = [index("patternId")]
+    )],
+    indices = [Index("patternId")]
 )
 data class Project(
     @PrimaryKey(autoGenerate = true)
     val id:        Int           = 0,
     val patternId: Int,
     val name: String,
-    val compSteps: int
+    var curComp: Int,
+    var compSteps: List<Int> = emptyList()
 )
 
 
@@ -72,6 +87,8 @@ data class Pattern(
     indices = [Index("patternId")]
 )
 data class Component(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
     val patternId: Int,
     val name:      String = "",
     val num:        Int    = 0,
@@ -95,7 +112,3 @@ data class Component(
         if (i !in steps.indices) this
         else copy(steps = steps.toMutableList().also { it.removeAt(i) })
 }
-
-
-
-

@@ -24,7 +24,10 @@ class CalendarLogic {
     var curMonth: Int
         private set //0 based again
 
-    var curDay: Int
+    var curDay: Int = 1
+        get() {
+            return this.curDay
+        }
         set(value) { field = value.coerceIn(1, daysInMonth) }
 
     var curYear: Int
@@ -65,7 +68,7 @@ class CalendarLogic {
         monthLen[1] = if (isLeapYear(curYear)) 29 else 28
     }
 
-    // **Fun helper Friends
+    // Fun helper Friends
 
     // num of days in month
     val daysInMonth: Int

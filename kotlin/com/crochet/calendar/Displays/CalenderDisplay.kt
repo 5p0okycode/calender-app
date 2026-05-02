@@ -18,32 +18,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.calander.ui.theme.*
 
-private val DOW = listOf("Sun","Mon","Tue","Wed","Thu","Fri","Sat")
+private val DOW = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
 @Composable
 fun CalendarGrid(
     daysInMonth:    Int,
     firstDayOfWeek: Int,
-    ActualDay:       Int,          // -1 if today not in this month
-    curDay:    Int,
+    actualDay:      Int,           // -1 if today is not in this month (renamed ActualDay → actualDay)
+    curDay:         Int,
     daysWithEvents: Set<Int>,
-    slideDir:       Int,          // -1 | 0 | 1
+    slideDir:       Int,           // -1 = prev | 0 = none | 1 = next
     onDayClick:     (Int) -> Unit,
     modifier:       Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
 
-        // ── Day-of-week header row ─────────────────────────────────────────
+        // Day-of-week header row
         Row(Modifier.fillMaxWidth()) {
             DOW.forEach { label ->
                 Text(
-                    text      = label.uppercase(),
-                    modifier  = Modifier.weight(1f),
-                    textAlign = TextAlign.Center,
-                    style     = MaterialTheme.typography.labelSmall,
-                    color     = OnSurfaceVariant.copy(alpha = 0.7f),
+                    text          = label.uppercase(),
+                    modifier      = Modifier.weight(1f),
+                    textAlign     = TextAlign.Center,
+                    style         = MaterialTheme.typography.labelSmall,
+                    color         = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     letterSpacing = 0.8.sp
                 )
             }
@@ -51,7 +50,7 @@ fun CalendarGrid(
 
         Spacer(Modifier.height(8.dp))
 
-        // ── Animated day grid ─────────────────────────────────────────────
+        // Slide animation direction
         val enterAnim = if (slideDir > 0)
             slideInHorizontally { it } + fadeIn()
         else
@@ -62,7 +61,7 @@ fun CalendarGrid(
         else
             slideOutHorizontally { it } + fadeOut()
 
-        // Key on month+year so AnimatedContent triggers on navigation
+        // AnimatedContent keys on both days+offset so it triggers on navigation
         AnimatedContent(
             targetState      = daysInMonth to firstDayOfWeek,
             transitionSpec   = { enterAnim togetherWith exitAnim },
@@ -72,8 +71,8 @@ fun CalendarGrid(
             DayGrid(
                 daysInMonth    = days,
                 firstDayOfWeek = offset,
-                todayDay       = todayDay,
-                selectedDay    = selectedDay,
+                todayDay       = actualDay,    // fixed: was referencing undefined todayDay
+                selectedDay    = curDay,       // fixed: was referencing undefined selectedDay
                 daysWithEvents = daysWithEvents,
                 onDayClick     = onDayClick
             )
@@ -90,25 +89,25 @@ private fun DayGrid(
     daysWithEvents: Set<Int>,
     onDayClick:     (Int) -> Unit,
 ) {
-    val NeededCells = (firstDayOfWeek + daysInMonth)
+    val neededCells = firstDayOfWeek + daysInMonth   // renamed NeededCells → neededCells
 
     Column {
         var cell = 0
-        while (cell < NeededCells) {
+        while (cell < neededCells) {
             Row(Modifier.fillMaxWidth()) {
                 for (col in 0..6) {
                     val dayNum = cell - firstDayOfWeek + 1
                     Box(
-                        modifier          = Modifier.weight(1f),
-                        contentAlignment  = Alignment.Center
+                        modifier         = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
                     ) {
                         if (cell >= firstDayOfWeek && dayNum <= daysInMonth) {
                             DayCell(
-                                day            = dayNum,
-                                isToday        = dayNum == ActualDay,
-                                isSelected     = dayNum == curDay && dayNum != ActualDay,
-                                hasEvents      = dayNum in daysWithEvents,
-                                onDayClick     = onDayClick
+                                day        = dayNum,
+                                isToday    = dayNum == todayDay,
+                                isSelected = dayNum == selectedDay && dayNum != todayDay,
+                                hasEvents  = dayNum in daysWithEvents,
+                                onDayClick = onDayClick
                             )
                         }
                     }
@@ -128,23 +127,25 @@ private fun DayCell(
     hasEvents:  Boolean,
     onDayClick: (Int) -> Unit,
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(40.dp)
             .then(
                 if (isToday) Modifier.shadow(
-                    elevation       = 6.dp,
-                    shape           = CircleShape,
-                    ambientColor    = Primary.copy(alpha = 0.3f),
-                    spotColor       = Primary.copy(alpha = 0.4f)
+                    elevation    = 6.dp,
+                    shape        = CircleShape,
+                    ambientColor = colorScheme.primary.copy(alpha = 0.3f),
+                    spotColor    = colorScheme.primary.copy(alpha = 0.4f)
                 ) else Modifier
             )
             .clip(CircleShape)
             .background(
                 when {
-                    isToday    -> Primary
-                    isSelected -> PrimaryContainer
+                    isToday    -> colorScheme.primary
+                    isSelected -> colorScheme.primaryContainer
                     else       -> Color.Transparent
                 }
             )
@@ -155,7 +156,6 @@ private fun DayCell(
     ) {
         Text(
             text       = day.toString(),
-            fontFamily = PlusJakartaSans,
             fontWeight = when {
                 isToday    -> FontWeight.Bold
                 isSelected -> FontWeight.SemiBold
@@ -163,21 +163,21 @@ private fun DayCell(
             },
             fontSize   = 17.sp,
             color      = when {
-                isToday    -> OnPrimary
-                isSelected -> OnPrimaryContainer
-                else       -> OnSurface
+                isToday    -> colorScheme.onPrimary
+                isSelected -> colorScheme.onPrimaryContainer
+                else       -> colorScheme.onSurface
             }
         )
     }
 
-    // Event dot below the day number
+    // Event dot below the number
     if (hasEvents) {
         Box(
             modifier = Modifier
                 .offset(y = 18.dp)
                 .size(5.dp)
                 .clip(CircleShape)
-                .background(if (isToday) OnPrimary.copy(alpha = 0.7f) else Tertiary)
+                .background(if (isToday) colorScheme.onPrimary.copy(alpha = 0.7f) else colorScheme.tertiary)
         )
     }
 }
