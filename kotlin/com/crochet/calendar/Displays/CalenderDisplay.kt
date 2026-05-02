@@ -12,20 +12,30 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.crochet.calendar.AppColors
+import com.crochet.calendar.PlusJakartaSans
 
 private val DOW = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+
+// Colour constants — replace with your actual theme imports if you have them
+private val Primary            = Color(0xFF526447)
+private val PrimaryContainer   = Color(0xFFD4E9C4)
+private val OnPrimary          = Color(0xFFECFFDD)
+private val OnPrimaryContainer = Color(0xFF45573B)
+private val OnSurface          = Color(0xFF3A3216)
+private val OnSurfaceVariant   = Color(0xFF685F3E)
+private val Tertiary           = Color(0xFF7E572E)
 
 @Composable
 fun CalendarGrid(
     daysInMonth:    Int,
     firstDayOfWeek: Int,
-    actualDay:      Int,           // -1 if today is not in this month (renamed ActualDay → actualDay)
+    actualDay:      Int,
     curDay:         Int,
     daysWithEvents: Set<Int>,
     slideDir:       Int,           // -1 = prev | 0 = none | 1 = next
@@ -33,7 +43,6 @@ fun CalendarGrid(
     modifier:       Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
-
         // Day-of-week header row
         Row(Modifier.fillMaxWidth()) {
             DOW.forEach { label ->
@@ -41,14 +50,16 @@ fun CalendarGrid(
                     text          = label.uppercase(),
                     modifier      = Modifier.weight(1f),
                     textAlign     = TextAlign.Center,
-                    style         = MaterialTheme.typography.labelSmall,
-                    color         = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    fontFamily    = PlusJakartaSans,
+                    fontWeight    = FontWeight.Bold,
+                    fontSize      = 10.sp,
+                    color         = AppColors.OnSurfaceVariant.copy(alpha = 0.5f),
                     letterSpacing = 0.8.sp
                 )
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp))
 
         // Slide animation direction
         val enterAnim = if (slideDir > 0)
@@ -71,8 +82,8 @@ fun CalendarGrid(
             DayGrid(
                 daysInMonth    = days,
                 firstDayOfWeek = offset,
-                todayDay       = actualDay,    // fixed: was referencing undefined todayDay
-                selectedDay    = curDay,       // fixed: was referencing undefined selectedDay
+                todayDay       = actualDay,
+                selectedDay    = curDay,
                 daysWithEvents = daysWithEvents,
                 onDayClick     = onDayClick
             )
@@ -127,25 +138,15 @@ private fun DayCell(
     hasEvents:  Boolean,
     onDayClick: (Int) -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(40.dp)
-            .then(
-                if (isToday) Modifier.shadow(
-                    elevation    = 6.dp,
-                    shape        = CircleShape,
-                    ambientColor = colorScheme.primary.copy(alpha = 0.3f),
-                    spotColor    = colorScheme.primary.copy(alpha = 0.4f)
-                ) else Modifier
-            )
             .clip(CircleShape)
             .background(
                 when {
-                    isToday    -> colorScheme.primary
-                    isSelected -> colorScheme.primaryContainer
+                    isToday    -> AppColors.Primary
+                    isSelected -> AppColors.Primary.copy(alpha = 0.1f)
                     else       -> Color.Transparent
                 }
             )
@@ -156,16 +157,13 @@ private fun DayCell(
     ) {
         Text(
             text       = day.toString(),
-            fontWeight = when {
-                isToday    -> FontWeight.Bold
-                isSelected -> FontWeight.SemiBold
-                else       -> FontWeight.Medium
-            },
-            fontSize   = 17.sp,
+            fontFamily = PlusJakartaSans,
+            fontWeight = if (isToday || isSelected) FontWeight.Bold else FontWeight.Medium,
+            fontSize   = 15.sp,
             color      = when {
-                isToday    -> colorScheme.onPrimary
-                isSelected -> colorScheme.onPrimaryContainer
-                else       -> colorScheme.onSurface
+                isToday    -> Color.White
+                isSelected -> AppColors.Primary
+                else       -> AppColors.OnSurface
             }
         )
     }
@@ -174,10 +172,10 @@ private fun DayCell(
     if (hasEvents) {
         Box(
             modifier = Modifier
-                .offset(y = 18.dp)
-                .size(5.dp)
+                .offset(y = 12.dp)
+                .size(4.dp)
                 .clip(CircleShape)
-                .background(if (isToday) colorScheme.onPrimary.copy(alpha = 0.7f) else colorScheme.tertiary)
+                .background(if (isToday) Color.White else AppColors.Secondary)
         )
     }
 }

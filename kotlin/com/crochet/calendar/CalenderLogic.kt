@@ -25,9 +25,7 @@ class CalendarLogic {
         private set //0 based again
 
     var curDay: Int = 1
-        get() {
-            return this.curDay
-        }
+        get() = field
         set(value) { field = value.coerceIn(1, daysInMonth) }
 
     var curYear: Int
