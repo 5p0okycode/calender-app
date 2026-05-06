@@ -6,8 +6,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -178,4 +186,185 @@ private fun DayCell(
                 .background(if (isToday) Color.White else AppColors.Secondary)
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EventMenuDialog(
+    event: Event,
+    projects: List<Project>,
+    onDismiss: () -> Unit,
+    onSave: (Event) -> Unit
+) {
+    var name      by remember { mutableStateOf(event.name) }
+    var time      by remember { mutableStateOf(event.time ?: "") }
+    var reminder  by remember { mutableStateOf(event.reminder) }
+    var projectId by remember { mutableStateOf(event.projectId) }
+    var expanded  by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text("Edit Event", fontWeight = FontWeight.Bold) },
+        text    = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value         = name,
+                    onValueChange = { name = it },
+                    label         = { Text("Name") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value         = time,
+                    onValueChange = { time = it },
+                    label         = { Text("Time (optional)") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+
+                // Project Selection
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = projects.find { it.id == projectId }?.name ?: "None",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Link Project") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None") },
+                            onClick = {
+                                projectId = null
+                                expanded = false
+                            }
+                        )
+                        projects.forEach { project ->
+                            DropdownMenuItem(
+                                text = { Text(project.name) },
+                                onClick = {
+                                    projectId = project.id
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = reminder, onCheckedChange = { reminder = it })
+                    Text("Reminder")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (name.isNotBlank()) {
+                    onSave(event.copy(name = name.trim(), time = time, reminder = reminder, projectId = projectId))
+                }
+            }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddEventDialog(
+    projects:  List<Project>,
+    onDismiss: () -> Unit,
+    onSave:    (name: String, time: String, reminder: Boolean, projectId: Int?) -> Unit
+) {
+    var name      by remember { mutableStateOf("") }
+    var time      by remember { mutableStateOf("") }
+    var reminder  by remember { mutableStateOf(false) }
+    var projectId by remember { mutableStateOf<Int?>(null) }
+    var expanded  by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text("New Event", fontWeight = FontWeight.Bold) },
+        text    = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value         = name,
+                    onValueChange = { name = it },
+                    label         = { Text("Name") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value         = time,
+                    onValueChange = { time = it },
+                    label         = { Text("Time (optional)") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+
+                // Project Selection
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = projects.find { it.id == projectId }?.name ?: "None",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Link Project") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("None") },
+                            onClick = {
+                                projectId = null
+                                expanded = false
+                            }
+                        )
+                        projects.forEach { project ->
+                            DropdownMenuItem(
+                                text = { Text(project.name) },
+                                onClick = {
+                                    projectId = project.id
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = reminder, onCheckedChange = { reminder = it })
+                    Text("Reminder")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { if (name.isNotBlank()) onSave(name, time, reminder, projectId) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }
