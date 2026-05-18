@@ -471,12 +471,22 @@ fun ComponentCard(
                             fontSize = 14.sp,
                             color = AppColors.OnSurface
                         )
+                        if(component.num >1){
                         Text(
                             text = "${component.steps.size} Steps ·  (Make ${component.num})",
                             fontFamily = BeVietnamPro,
                             fontSize = 11.sp,
                             color = AppColors.OnSurfaceVariant
                         )
+                        } else {
+                        Text(
+                            text = "${component.steps.size} Steps",
+                            fontFamily = BeVietnamPro,
+                            fontSize = 11.sp,
+                            color = AppColors.OnSurfaceVariant
+                        )
+                        }
+
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1004,7 +1014,7 @@ fun ComponentMenuDialog(
 ) {
     var name      by remember { mutableStateOf(component.name) }
     var numInput  by remember { mutableStateOf(component.num.toString()) }
-    var steps     by remember { mutableStateOf(component.steps) }
+    var currentComponent by remember { mutableStateOf(component) }
     var stepInput by remember { mutableStateOf("") }
 
     AlertDialog(
@@ -1061,16 +1071,27 @@ fun ComponentMenuDialog(
                     SheetLabel("Steps")
                     Spacer(Modifier.height(8.dp))
                     
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        steps.forEachIndexed { i, step ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        currentComponent.steps.forEachIndexed { i, step ->
                             Row(
-                                modifier              = Modifier.fillMaxWidth(),
+                                modifier              = Modifier
+                                    .fillMaxWidth()
+                                    .background(AppColors.Surface, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
                                 verticalAlignment     = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                // Drag Handle / Order Indicator
+                                Icon(
+                                    Icons.Outlined.DragIndicator,
+                                    contentDescription = null,
+                                    tint = AppColors.OutlineVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+
                                 Box(
                                     modifier = Modifier
-                                        .size(20.dp)
+                                        .size(24.dp)
                                         .clip(CircleShape)
                                         .background(AppColors.PrimaryContainer),
                                     contentAlignment = Alignment.Center
@@ -1079,22 +1100,54 @@ fun ComponentMenuDialog(
                                         "${i + 1}",
                                         fontFamily = PlusJakartaSans,
                                         fontWeight = FontWeight.Bold,
-                                        fontSize   = 10.sp,
+                                        fontSize   = 12.sp,
                                         color      = AppColors.OnPrimaryContainer
                                     )
                                 }
+                                
                                 Text(
                                     text       = step,
                                     modifier   = Modifier.weight(1f),
                                     fontFamily = BeVietnamPro,
-                                    fontSize   = 13.sp,
-                                    color      = AppColors.OnSurfaceVariant
+                                    fontSize   = 14.sp,
+                                    color      = AppColors.OnSurface
                                 )
-                                IconButton(
-                                    onClick  = { steps = steps.toMutableList().also { it.removeAt(i) } },
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(Icons.Outlined.Close, null, modifier = Modifier.size(14.dp), tint = AppColors.OutlineVariant)
+                                
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    // Move Up
+                                    IconButton(
+                                        onClick  = { currentComponent = currentComponent.moveStep(i, false) },
+                                        enabled  = i > 0,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.KeyboardArrowUp, 
+                                            null, 
+                                            modifier = Modifier.size(18.dp), 
+                                            tint = if(i > 0) AppColors.Primary else AppColors.OutlineVariant.copy(alpha = 0.3f)
+                                        )
+                                    }
+
+                                    // Move Down
+                                    IconButton(
+                                        onClick  = { currentComponent = currentComponent.moveStep(i, true) },
+                                        enabled  = i < currentComponent.steps.size - 1,
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.KeyboardArrowDown, 
+                                            null, 
+                                            modifier = Modifier.size(18.dp), 
+                                            tint = if(i < currentComponent.steps.size - 1) AppColors.Primary else AppColors.OutlineVariant.copy(alpha = 0.3f)
+                                        )
+                                    }
+
+                                    IconButton(
+                                        onClick  = { currentComponent = currentComponent.removeStep(i) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Outlined.DeleteOutline, null, modifier = Modifier.size(18.dp), tint = Color(0xFFB3261E).copy(alpha = 0.8f))
+                                    }
                                 }
                             }
                         }
@@ -1119,7 +1172,7 @@ fun ComponentMenuDialog(
                                 .background(AppColors.Primary)
                                 .clickable {
                                     if (stepInput.isNotBlank()) {
-                                        steps = steps + stepInput.trim()
+                                        currentComponent = currentComponent.addStep(stepInput.trim())
                                         stepInput = ""
                                     }
                                 },
@@ -1135,10 +1188,9 @@ fun ComponentMenuDialog(
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        onSave(component.copy(
+                        onSave(currentComponent.copy(
                             name  = name.trim(),
-                            num   = numInput.toIntOrNull() ?: 1,
-                            steps = steps
+                            num   = numInput.toIntOrNull() ?: 1
                         ))
                     }
                 }

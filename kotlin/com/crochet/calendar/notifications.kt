@@ -4,26 +4,41 @@ import android.Manifest
 import android.app.*
 import android.content.*
 import android.os.Build
-import androidx.annotation.RequiresPermission
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.util.Calendar as JC
 
 class EventReminderReceiver : BroadcastReceiver() {
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onReceive(context: Context, intent: Intent) {
-        val eventName = intent.getStringExtra("event_name") ?: return
+        val eventName = intent.getStringExtra("event_name") ?: "Event Reminder"
         val eventId   = intent.getIntExtra("event_id", 0)
+        
+        Log.d("CrochetNotifications", "Receiver triggered for: $eventName")
+
+        // Check permission for Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                Log.e("CrochetNotifications", "Permission not granted, cannot show notification")
+                return
+            }
+        }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.app_icon)  // swap for your own icon
+            .setSmallIcon(R.mipmap.app_icon)
             .setContentTitle("🧶 Crochet Calendar")
             .setContentText(eventName)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)   // dismisses when tapped
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setAutoCancel(true)
             .build()
 
-        NotificationManagerCompat.from(context).notify(eventId, notification)
+        try {
+            NotificationManagerCompat.from(context).notify(eventId, notification)
+            Log.d("CrochetNotifications", "Notification sent successfully")
+        } catch (e: SecurityException) {
+            Log.e("CrochetNotifications", "SecurityException: ${e.message}")
+        }
     }
 
     companion object {
@@ -55,29 +70,36 @@ class NotificationHelper(private val context: Context) {
     }
 
     // Schedule a notification for a given Event
-    fun scheduleReminder(event: Event) {
+    fun eventReminder(event: Event) {
         if (!event.reminder) return
 
-        // Build the time to fire — 9am on the event day if no time set,
-        // or 15 minutes before if a time is provided
+        // Build the time to fire
         val cal = JC.getInstance().apply {
             set(JC.YEAR,         event.year)
-            set(JC.MONTH,        event.month)  // already 0-based
+            set(JC.MONTH,        event.month)
             set(JC.DAY_OF_MONTH, event.day)
 
             val timeParts = event.time?.split(":")
             if (timeParts?.size == 2) {
-                set(JC.HOUR_OF_DAY, timeParts[0].toIntOrNull() ?: 9)
-                set(JC.MINUTE,      (timeParts[1].toIntOrNull() ?: 0) - 15)
+                val hour = timeParts[0].trim().toIntOrNull() ?: 9
+                val min  = timeParts[1].trim().toIntOrNull() ?: 0
+                set(JC.HOUR_OF_DAY, hour)
+                set(JC.MINUTE,      min)
             } else {
                 set(JC.HOUR_OF_DAY, 9)
                 set(JC.MINUTE, 0)
             }
             set(JC.SECOND, 0)
+            set(JC.MILLISECOND, 0)
         }
 
-        // Don't schedule if the time has already passed
-        if (cal.timeInMillis <= System.currentTimeMillis()) return
+        // If time is in the past, don't schedule
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            Log.w("CrochetNotifications", "event already passed")
+            return
+        }
+
+        Log.d("CrochetNotifications", "Scheduling notification for ${event.name} at ${cal.time}")
 
         val intent = Intent(context, EventReminderReceiver::class.java).apply {
             putExtra("event_name", event.name)
@@ -98,6 +120,55 @@ class NotificationHelper(private val context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
             !alarmManager.canScheduleExactAlarms()) {
             // Fallback to inexact if exact alarm permission not granted
+            alarmManager.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                cal.timeInMillis,
+                pendingIntent
+            )
+        }
+    }
+    
+    fun holidayNotification(holiday: Holiday, year: Int) {
+        // Build the time to fire
+        val cal = JC.getInstance().apply {
+            set(JC.YEAR,         year)
+            set(JC.MONTH,        holiday.month - 1)
+            set(JC.DAY_OF_MONTH, holiday.day)
+            set(JC.HOUR_OF_DAY,  0)
+            set(JC.MINUTE,       0)
+            set(JC.SECOND,       0)
+            set(JC.MILLISECOND,  0)
+        }
+
+        // If time is already passed, don't schedule
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            Log.w("CrochetNotifications", "holiday ${holiday.name} already passed")
+            return
+        }
+
+        Log.d("CrochetNotifications", "Scheduling holiday notification for ${holiday.name} at ${cal.time}")
+
+        val holidayMessage = "Enjoy a ${holiday.prefix} ${holiday.name} ${holiday.emoji}"
+        val holidayId = holiday.name.hashCode()
+
+        val intent = Intent(context, EventReminderReceiver::class.java).apply {
+            putExtra("event_name", holidayMessage)
+            putExtra("event_id",   holidayId)
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            holidayId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()) {
             alarmManager.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
         } else {
             alarmManager.setExactAndAllowWhileIdle(

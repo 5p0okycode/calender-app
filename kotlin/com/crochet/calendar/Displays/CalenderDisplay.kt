@@ -1,17 +1,23 @@
 package com.crochet.calendar
 
 import androidx.compose.animation.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -19,14 +25,20 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crochet.calendar.AppColors
 import com.crochet.calendar.PlusJakartaSans
+import com.crochet.calendar.R
+import java.time.Month
 
 private val DOW = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
@@ -162,7 +174,8 @@ private fun DayCell(
                 interactionSource = remember { MutableInteractionSource() },
                 indication        = null
             ) { onDayClick(day) }
-    ) {
+    )
+    {
         Text(
             text       = day.toString(),
             fontFamily = PlusJakartaSans,
@@ -187,6 +200,7 @@ private fun DayCell(
         )
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -360,6 +374,170 @@ fun AddEventDialog(
         },
         confirmButton = {
             TextButton(onClick = { if (name.isNotBlank()) onSave(name, time, reminder, projectId) }) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+@Composable
+fun addBirthdayDialog(
+    onDismiss: () -> Unit,
+    onSave:    (name: String, month: Int, day: Int, mine: Boolean) -> Unit,
+    initialMonth: Int = 1,
+    initialDay: Int = 1
+) {
+    var name     by remember { mutableStateOf("") }
+    var monthStr by remember { mutableStateOf(initialMonth.toString()) }
+    var dayStr   by remember { mutableStateOf(initialDay.toString()) }
+    var mine     by remember { mutableStateOf(false) }
+
+    // Parse to Int for validation and saving
+    val month = monthStr.toIntOrNull() ?: 0
+    val day   = dayStr.toIntOrNull() ?: 0
+
+    // Validate inputs
+    val isFormValid = name.isNotBlank() && month in 1..12 && day in 1..31
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text("Add Birthday", fontWeight = FontWeight.Bold) },
+        text    = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value         = name,
+                    onValueChange = { name = it },
+                    label         = { Text("Name") },
+                    singleLine    = true,
+                    modifier      = Modifier.fillMaxWidth()
+                )
+
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value         = monthStr,
+                        onValueChange = { if (it.length <= 2) monthStr = it.filter { c -> c.isDigit() } },
+                        label         = { Text("month") },
+                        placeholder   = { Text("MM") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value         = dayStr,
+                        onValueChange = { if (it.length <= 2) dayStr = it.filter { c -> c.isDigit() } },
+                        label         = { Text("day") },
+                        placeholder   = { Text("DD") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication        = null
+                        ) { mine = !mine }
+                ) {
+                    Checkbox(checked = mine, onCheckedChange = { mine = it })
+                    Text("Your birthday?")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name.trim(), month, day, mine) },
+                enabled = isFormValid
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+fun addHolidayDialog(
+    onDismiss: () -> Unit,
+    onSave:    (name: String, month: Int, day: Int, prefix: String) -> Unit
+){
+    var name     by remember { mutableStateOf("") }
+    var monthStr by remember { mutableStateOf("") }
+    var dayStr   by remember { mutableStateOf("") }
+    var prefix     by remember { mutableStateOf("") }
+
+    // Parse to Int for validation and saving
+    val month = monthStr.toIntOrNull() ?: 0
+    val day   = dayStr.toIntOrNull() ?: 0
+
+    // Validate inputs
+    val isFormValid = name.isNotBlank() && month in 1..12 && day in 1..31
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title   = { Text("Add Holiday", fontWeight = FontWeight.Bold) },
+        text    = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value         = prefix,
+                        onValueChange = { prefix = it },
+                        label         = { Text("Prefix") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(0.4f)
+                    )
+                    OutlinedTextField(
+                        value         = name,
+                        onValueChange = { name = it },
+                        label         = { Text("Name") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(0.6f)
+                    )
+                }
+
+                Row(
+                    modifier              = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value         = monthStr,
+                        onValueChange = { if (it.length <= 2) monthStr = it.filter { c -> c.isDigit() } },
+                        label         = { Text("month") },
+                        placeholder   = { Text("MM") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                    OutlinedTextField(
+                        value         = dayStr,
+                        onValueChange = { if (it.length <= 2) dayStr = it.filter { c -> c.isDigit() } },
+                        label         = { Text("day") },
+                        placeholder   = { Text("DD") },
+                        singleLine    = true,
+                        modifier      = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSave(name.trim(), month, day, prefix.trim()) },
+                enabled = isFormValid
+            ) {
                 Text("Save")
             }
         },

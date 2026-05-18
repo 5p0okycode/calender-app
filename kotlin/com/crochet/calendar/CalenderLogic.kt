@@ -1,5 +1,6 @@
 package com.crochet.calendar
 
+import androidx.compose.runtime.mutableStateListOf
 import java.util.Calendar as JC
 
 class CalendarLogic {
@@ -88,15 +89,38 @@ class CalendarLogic {
             year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
     }
 }
-//for funsies got lazy and used ai to make a list of holidays
+data class birthday(
+    val name:  String,
+    val month: Int,
+    val day:   Int,
+    val yours: Boolean
+)
+
+object birthDays {
+    var all = mutableStateListOf<birthday>()
+    //for testing
+    //var all = mutableStateListOf<birthday>( birthday("Victor", 5, 14, true), birthday("Someone", 5, 13, false) )
+
+    fun getBirthdayForDay(month: Int, day: Int): List<birthday> {
+        return all.filter { it.month == month && it.day == day }
+    }
+    fun addBirthday(name:  String, month: Int, day: Int, yours: Boolean) {
+        all.add(birthday(name, month, day, yours))
+    }
+}
+
+//for funsies, got lazy and used ai to make a list of holidays
 data class Holiday(
     val name:  String,
     val month: Int,
     val day:   Int,
-    val emoji: String
+    val emoji: String,
+    val prefix: String = "happy"
 )
 
 object Holidays {
+    // ── Custom holidays ───────────────────────────────────────────────────────
+    val customHolidays = mutableStateListOf<Holiday>()
 
     // ── Fixed-date holidays ───────────────────────────────────────────────────
 
@@ -110,8 +134,8 @@ object Holidays {
         Holiday("Independence Day",       7,  4,  "🇺🇸"),
         Holiday("Halloween",              10, 31, "🎃"),
         Holiday("Veterans Day",           11, 11, "🎖️"),
-        Holiday("Christmas Eve",          12, 24, "🌟"),
-        Holiday("Christmas Day",          12, 25, "🎄"),
+        Holiday("Christmas Eve",          12, 24, "🌟", "merry"),
+        Holiday("Christmas Day",          12, 25, "🎄", "merry"),
         Holiday("New Year's Eve",         12, 31, "🥂"),
 
         // ── German ───────────────────────────────────────────────────────────
@@ -124,8 +148,8 @@ object Holidays {
         Holiday("Reformationstag",        10, 31, "⛪"),   // Reformationstag (BB, HB, HH, MV, NI, SN, ST, SH, TH)
         Holiday("Allerheiligen",        11, 1,  "🕯️"),  // Allerheiligen (BW, BY, NW, RP, SL)
         Holiday("Nikolaustag",       12, 6,  "🎅"),   // Nikolaustag (traditional)
-        Holiday("1. Weinachtstag",          12, 25, "🎄"),   // 1. Weihnachtstag
-        Holiday("2. Weihnachtstag",   12, 26, "🎁"),   // 2. Weihnachtstag
+        Holiday("1. Weinachtstag",          12, 25, "🎄", "frohe"),   // 1. Weihnachtstag
+        Holiday("2. Weihnachtstag",   12, 26, "🎁", "frohe"),   // 2. Weihnachtstag
     )
 
     // ── Calculated holidays (change every year) ───────────────────────────────
@@ -231,10 +255,20 @@ object Holidays {
 
     // ── Main lookup — call this from your calendar grid ───────────────────────
 
+    private var cachedYear: Int = -1
+    private var cachedMoveable: List<Holiday> = emptyList()
+
     fun getForDay(month: Int, day: Int, year: Int): List<Holiday> {
-        val allFixed    = fixed.filter { it.month == month && it.day == day }
-        val allMoveable = moveable(year).filter { it.month == month && it.day == day }
+        if (year != cachedYear) {
+            cachedYear = year
+            cachedMoveable = moveable(year)
+        }
+        val allFixed    = (fixed + customHolidays).filter { it.month == month && it.day == day }
+        val allMoveable = cachedMoveable.filter { it.month == month && it.day == day }
         // Deduplicate Christmas which appears in both US and German fixed lists
         return (allFixed + allMoveable).distinctBy { it.name }
+    }
+    fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
+        customHolidays.add(Holiday(name, month, day, "🎉", prefix))
     }
 }

@@ -2,17 +2,27 @@ package com.crochet.calendar
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
+import java.time.MonthDay
 
 @Dao
 interface EventDao {
     @Query("SELECT * FROM events WHERE year=:year AND month=:month AND day=:day ORDER BY time ASC")
     fun getEventsForDay(year: Int, month: Int, day: Int): Flow<List<Event>>
 
+    @Query("SELECT * FROM events ORDER BY year DESC, month DESC, day ASC, time ASC")
+    fun getAllEvents(): Flow<List<Event>>
+
+    @Query("SELECT * FROM events WHERE year=:year AND month>=:month AND day>=:day ORDER BY time ASC, day ASC")
+    fun getAllUpcomingEvents(year: Int, month: Int, day: Int): Flow<List<Event>>
+
     @Query("SELECT DISTINCT day FROM events WHERE year=:year AND month=:month")
     fun getDaysWithEvents(year: Int, month: Int): Flow<List<Int>>
 
+    @Query("SELECT DISTINCT day FROM events WHERE year=:year AND month=:month AND reminder")
+    fun getDaysWithReminders(year: Int, month: Int): Flow<List<Int>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertEvent(event: Event)
+    suspend fun insertEvent(event: Event): Long
 
     @Update
     suspend fun updateEvent(event: Event)

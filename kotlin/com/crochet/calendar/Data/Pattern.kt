@@ -6,7 +6,6 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 
-//to store list string
 class Converters {
     @TypeConverter
     fun fromStringList(list: List<String>): String =
@@ -101,6 +100,18 @@ data class Component(
 
     fun addStep(name: String, i: Int): Component {
         val newSteps = steps.toMutableList().also { it.add(i.coerceIn(0, steps.size), name.trim()) }
+        return copy(steps = newSteps)
+    }
+
+    fun moveStep(i: Int, Dir: Boolean): Component { // if dir move right
+        if (Dir&&i>=steps.size-1 || !Dir&&i<=0) return this
+        val newSteps = steps.toMutableList()
+        val targetIndex = if (Dir) i + 1 else i - 1
+        
+        val temp = newSteps[i]
+        newSteps[i] = newSteps[targetIndex]
+        newSteps[targetIndex] = temp
+
         return copy(steps = newSteps)
     }
 

@@ -1,22 +1,29 @@
 package com.crochet.calendar.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.crochet.calendar.AppColors
+import com.crochet.calendar.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StitchedCard
@@ -121,10 +128,10 @@ fun DashedDivider(modifier: Modifier = Modifier) {
                     // SVG path translated: M0,8 L5,16 L10,18 L390,18 L395,16 L400,8
                     // We normalize the 400 coordinates to actual width
                     moveTo(0f, 0f)
-                    lineTo(5f * (w/400f), 12f)
-                    lineTo(10f * (w/400f), 14f)
-                    lineTo(w - 10f * (w/400f), 14f)
-                    lineTo(w - 5f * (w/400f), 12f)
+                    lineTo(20f * (w/400f), 24f)
+                    lineTo(25f * (w/400f), 26f)
+                    lineTo(w - 25f * (w/400f), 26f)
+                    lineTo(w - 20f * (w/400f), 24f)
                     lineTo(w, 0f)
                 }
                 
@@ -163,3 +170,41 @@ fun GrainOverlay(modifier: Modifier = Modifier) {
     // This composable is a placeholder — add the drawable to res/drawable.
     Box(modifier = modifier.fillMaxSize())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Previews
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**@Preview(showBackground = true, backgroundColor = 0xFFFFF8EF) // Matches AppColors.Background
+@Composable
+fun GrannySquarePreview() {
+    Column(
+        modifier = Modifier.padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text("Outer Layer", color = AppColors.OnSurface)
+        Image(
+            painter = painterResource(id = R.drawable.ic_granny_square),
+            contentDescription = null,
+            modifier = Modifier.size(100.dp)
+        )
+
+        Text("Middle Layer", color = AppColors.OnSurface)
+        Image(
+            painter = painterResource(id = R.drawable.ic_granny_square),
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            colorFilter = ColorFilter.tint(Color(0xFF8D6E63))
+        )
+
+        Text("Inner Layer", color = AppColors.OnSurface)
+        Image(
+            painter = painterResource(id = R.drawable.ic_granny_square_rounds),
+            contentDescription = null,
+            modifier = Modifier.size(100.dp),
+            colorFilter = ColorFilter.tint(Color(0xFF8D6E63))
+        )
+    }
+}
+**/
