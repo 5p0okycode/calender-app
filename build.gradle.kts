@@ -1,8 +1,13 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
 }
 
 
@@ -29,21 +34,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
     buildFeatures {
         compose = true
     }
 
     sourceSets {
         getByName("main") {
-            java.setSrcDirs(listOf("kotlin"))
-            res.setSrcDirs(listOf("res"))
+            kotlin.srcDirs("kotlin")
+            java.srcDirs("kotlin")
+            res.srcDirs("res")
             manifest.srcFile("AndroidManifest.xml")
         }
     }
+    buildToolsVersion = "36.0.0"
+    ndkVersion = "25.1.8937393"
 }
 
 dependencies {

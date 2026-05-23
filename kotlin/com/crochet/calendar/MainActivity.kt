@@ -2,8 +2,6 @@ package com.crochet.calendar
 
 import android.Manifest
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -23,8 +21,10 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Cake
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.Flare
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Yard
 import androidx.compose.material3.*
@@ -41,10 +41,25 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.Room
-import com.crochet.calendar.Holidays.addHoliday
-import com.crochet.calendar.birthDays.addBirthday
+import com.crochet.calendar.data.CalendarDatabase
+import com.crochet.calendar.data.Component
+import com.crochet.calendar.data.Event
+import com.crochet.calendar.data.Pattern
+import com.crochet.calendar.data.Project
+import com.crochet.calendar.displays.AddEventDialog
+import com.crochet.calendar.displays.AddProjectDialog
+import com.crochet.calendar.displays.CalendarGrid
+import com.crochet.calendar.displays.EventMenuDialog
+import com.crochet.calendar.displays.PatternScreen
+import com.crochet.calendar.displays.ProjectsScreen
+import com.crochet.calendar.displays.addBirthdayDialog
+import com.crochet.calendar.displays.addHolidayDialog
+import com.crochet.calendar.ui.AppColors
+import com.crochet.calendar.ui.BeVietnamPro
 import com.crochet.calendar.ui.DashedDivider
+import com.crochet.calendar.ui.DipsyBottomBarShape
 import com.crochet.calendar.ui.GrainOverlay
+import com.crochet.calendar.ui.PlusJakartaSans
 import com.crochet.calendar.ui.stitchBorder
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -70,7 +85,7 @@ data class CalendarUiState(
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     internal val db    = Room.databaseBuilder(app, CalendarDatabase::class.java, "crochet_db").build()
-    private val logic = CalendarLogic()
+    private val logic = CalendarLogic(app)
     private val notificationHelper = NotificationHelper(app)
 
     val eventDao   = db.eventDao()
@@ -149,12 +164,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val s = _uiState.value
         viewModelScope.launch {
             val event = Event(
-                name      = name.trim(),
-                year      = s.viewYear,
-                month     = s.viewMonth,
-                day       = s.curDay,
-                time      = time,
-                reminder  = reminder,
+                name = name.trim(),
+                year = s.viewYear,
+                month = s.viewMonth,
+                day = s.curDay,
+                time = time,
+                reminder = reminder,
                 projectId = projectId
             )
             val id = eventDao.insertEvent(event)
@@ -182,6 +197,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
+        logic.addHoliday(name, month, day, prefix)
+    }
+
+    fun addBirthday(name: String, month: Int, day: Int, mine: Boolean) {
+        logic.addBirthday(name, month, day, mine)
+    }
+
+    fun deleteBirthday(bday: birthday) {
+        birthDays.all.remove(bday)
+        logic.saveBirthdays()
+    }
+
+    fun deleteHoliday(h: holiday) {
+        holidays.saved.remove(h)
+        logic.saveCustomHolidays()
+    }
+
     // ── Pattern CRUD ──────────────────────────────────────────────────────────
 
     fun addPattern(name: String, notes: String = "") {
@@ -197,7 +230,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun addProject(name: String, patternId: Int) {
         if (name.isBlank()) return
-        viewModelScope.launch { projectDao.insertProject(Project(name = name.trim(), patternId = patternId, curComp = 0)) }
+        viewModelScope.launch { projectDao.insertProject(
+            Project(
+                name = name.trim(),
+                patternId = patternId,
+                curComp = 0
+            )
+        ) }
     }
 
     fun deleteProject(project: Project) {
@@ -257,18 +296,27 @@ fun AppRoot(viewModel: MainViewModel) {
 
     Scaffold(
         bottomBar = {
-            Surface(
-                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                tonalElevation = 3.dp,
-                shadowElevation = 8.dp,
+            Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    
+                    .fillMaxWidth()
+                    .wrapContentHeight()
             ) {
-                Box {
+                Surface(
+                    shape = DipsyBottomBarShape,
+                    tonalElevation = 3.dp,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            shadowElevation = 8.dp.toPx()
+                            shape = DipsyBottomBarShape
+                            clip = true
+                        }
+                ) {
                     NavigationBar(
                         windowInsets = WindowInsets(0, 0, 0, 0),
-                        modifier = Modifier.height(90.dp)
+                        modifier = Modifier
+                            .height(80.dp)
+                            .padding(top = 0.dp),
+                        containerColor = Color.Transparent
                     ) {
                         NavigationBarItem(
                             selected = currentTab == Tab.CALENDAR,
@@ -307,13 +355,14 @@ fun AppRoot(viewModel: MainViewModel) {
                             }
                         )
                     }
-                    DashedDivider(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .offset(y = (6).dp)
-                            .graphicsLayer(scaleY = -1f)
-                    )
                 }
+                
+                DashedDivider(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .graphicsLayer(scaleY = -1f)
+                        .offset(y = 12.dp)
+                )
             }
         }
     ) { padding ->
@@ -321,7 +370,7 @@ fun AppRoot(viewModel: MainViewModel) {
             when (currentTab) {
                 Tab.CALENDAR -> CalendarTab(viewModel)
                 Tab.PROJECTS -> ProjectsScreen(viewModel)
-                Tab.PATTERNS -> PatternsScreen(viewModel)
+                Tab.PATTERNS -> PatternScreen(viewModel)
             }
         }
     }
@@ -331,7 +380,7 @@ fun AppRoot(viewModel: MainViewModel) {
 // Calendar Tab
 // ─────────────────────────────────────────────────────────────────────────────
 
-private enum class CalState { CALENDAR, EVENTS, REMINDERS }
+private enum class CalState { CALENDAR, EVENTS, HOLIDAYS , BIRTHDAYS }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarTab(viewModel: MainViewModel) {
@@ -347,7 +396,7 @@ fun CalendarTab(viewModel: MainViewModel) {
 
     val dayHolidays by remember(uiState.viewMonth, uiState.curDay, uiState.viewYear) {
         derivedStateOf {
-            Holidays.getForDay(uiState.viewMonth + 1, uiState.curDay, uiState.viewYear)
+            holidays.getForDay(uiState.viewMonth + 1, uiState.curDay, uiState.viewYear)
         }
     }
     val dayBirthdays by remember(uiState.viewMonth, uiState.curDay) {
@@ -366,17 +415,14 @@ fun CalendarTab(viewModel: MainViewModel) {
         Scaffold(
             containerColor = Color.Transparent,
             topBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(AppColors.Background.copy(alpha = 0.85f)) // backdrop-blur effect
-                        .statusBarsPadding()
-                ) {
+                Column {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                            .background(AppColors.Background.copy(alpha = 0.85f))
+                            .statusBarsPadding()
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        verticalAlignment     = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         // Left Section: Settings Button
@@ -394,10 +440,24 @@ fun CalendarTab(viewModel: MainViewModel) {
                             )
                         }
 
+                        Text(
+                            text = if (calState == CalState.CALENDAR) uiState.monthLabel
+                            else if (calState == CalState.EVENTS) "All Events"
+                            else if (calState == CalState.HOLIDAYS) "All Holidays"
+                            else "All Birthdays",
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp,
+                            color = AppColors.Primary,
+                        )
+
                         // Right Section: View Toggle
                         IconButton(
                             onClick = {
-                                calState = if (calState == CalState.CALENDAR) CalState.EVENTS else CalState.CALENDAR
+                                calState = if (calState == CalState.CALENDAR) CalState.EVENTS
+                                else if (calState == CalState.EVENTS) CalState.HOLIDAYS
+                                else if (calState == CalState.HOLIDAYS) CalState.BIRTHDAYS
+                                else CalState.CALENDAR
                             },
                             modifier = Modifier
                                 .size(40.dp)
@@ -413,29 +473,20 @@ fun CalendarTab(viewModel: MainViewModel) {
                                 )
                         ) {
                             Icon(
-                                imageVector = if (calState == CalState.CALENDAR) Icons.Outlined.FormatListBulleted else Icons.Outlined.CalendarMonth,
+                                imageVector = when
+                                {
+                                    (calState == CalState.CALENDAR) -> Icons.Outlined.Alarm
+                                    (calState == CalState.EVENTS) -> Icons.Outlined.Flare
+                                    (calState == CalState.HOLIDAYS) -> Icons.Outlined.Cake
+                                    else -> Icons.Outlined.CalendarMonth
+                                },
                                 contentDescription = "Toggle View",
                                 tint = AppColors.Primary
                             )
                         }
                     }
 
-                    // Absolute Center Title
-                    Text(
-                        text = if (calState == CalState.CALENDAR) uiState.monthLabel else "All Events",
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 22.sp,
-                        color = AppColors.Primary,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-
-                    // Hand-drawn bottom divider
-                    DashedDivider(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .offset(y = 6.dp)
-                    )
+                    DashedDivider()
                 }
             },
             floatingActionButton = {
@@ -489,7 +540,10 @@ fun CalendarTab(viewModel: MainViewModel) {
                                     }
 
                                     IconButton(onClick = { viewModel.nextMonth() }) {
-                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Next", tint = AppColors.Tertiary)
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            "Next",
+                                            tint = AppColors.Tertiary)
                                     }
                                 }
 
@@ -507,22 +561,30 @@ fun CalendarTab(viewModel: MainViewModel) {
                                     colors = CardDefaults.cardColors(containerColor = Color.White)
                                 ) {
                                     CalendarGrid(
-                                        daysInMonth    = uiState.daysInMonth,
+                                        daysInMonth = uiState.daysInMonth,
                                         firstDayOfWeek = uiState.firstDayOfWeek,
-                                        actualDay      = uiState.actualDay,
-                                        curDay         = uiState.curDay, daysWithEvents = remember(uiState.daysWithEvents, uiState.viewMonth, uiState.viewYear) {
+                                        actualDay = uiState.actualDay,
+                                        curDay = uiState.curDay,
+                                        daysWithEvents = remember(
+                                            uiState.daysWithEvents,
+                                            uiState.viewMonth,
+                                            uiState.viewYear
+                                        ) {
                                             derivedStateOf {
                                                 val dots = uiState.daysWithEvents.toMutableSet()
-                                                birthDays.all.filter { it.month == uiState.viewMonth + 1 }.forEach { dots.add(it.day) }
-                                                Holidays.fixed.filter { it.month == uiState.viewMonth + 1 }.forEach { dots.add(it.day) }
-                                                Holidays.customHolidays.filter { it.month == uiState.viewMonth + 1 }.forEach { dots.add(it.day) }
-                                                Holidays.moveable(uiState.viewYear).filter { it.month == uiState.viewMonth + 1 }.forEach { dots.add(it.day) }
+                                                birthDays.all.filter { it.month == uiState.viewMonth + 1 }
+                                                    .forEach { dots.add(it.day) }
+                                                holidays.saved.filter { it.month == uiState.viewMonth + 1 }
+                                                    .forEach { dots.add(it.day) }
+                                                holidays.moveable(uiState.viewYear)
+                                                    .filter { it.month == uiState.viewMonth + 1 }
+                                                    .forEach { dots.add(it.day) }
                                                 dots
                                             }
                                         }.value,
-                                        slideDir       = uiState.slideDir,
-                                        onDayClick     = { viewModel.selectDay(it) },
-                                        modifier       = Modifier.padding(16.dp)
+                                        slideDir = uiState.slideDir,
+                                        onDayClick = { viewModel.selectDay(it) },
+                                        modifier = Modifier.padding(16.dp)
                                     )
                                 }
 
@@ -568,15 +630,11 @@ fun CalendarTab(viewModel: MainViewModel) {
                             }
 
                             if (dayHolidays.isNotEmpty()) {
-                                item {
-                                    val joined = dayHolidays.joinToString(" and ") { "${it.prefix} ${it.name} ${it.emoji}" }
-                                    Text(
-                                        text = "Enjoy a $joined",
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = AppColors.Primary,
-                                        modifier = Modifier.padding(vertical = 12.dp)
+                                items(dayHolidays) { holiday ->
+                                    HolidayRow(
+                                        holiday = holiday,
+                                        iconColor = AppColors.Secondary,
+                                        onDelete = { viewModel.deleteHoliday(holiday) }
                                     )
                                 }
                             }
@@ -594,17 +652,11 @@ fun CalendarTab(viewModel: MainViewModel) {
                             }
 
                             if (dayBirthdays.isNotEmpty()) {
-                                item {
-                                    val joined = dayBirthdays.joinToString(" and ") {
-                                        if (it.yours) " happy birthday" else " Wish ${it.name} a happy birthday"
-                                    }
-                                    Text(
-                                        text = "$joined+! 🎂",
-                                        fontFamily = PlusJakartaSans,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp,
-                                        color = AppColors.Tertiary,
-                                        modifier = Modifier.padding(vertical = 8.dp)
+                                items(dayBirthdays) { bday ->
+                                    BirthdayRow(
+                                        birthday = bday,
+                                        iconColor = AppColors.Tertiary,
+                                        onDelete = { viewModel.deleteBirthday(bday) }
                                     )
                                 }
                             }
@@ -617,25 +669,54 @@ fun CalendarTab(viewModel: MainViewModel) {
                             onEditEvent = { editingEvent = it }
                         )
                     }
-                    else -> { /* Reminders if implemented */ }
+                    CalState.HOLIDAYS -> {
+                        HolidayScreen(viewModel = viewModel)
+                    }
+                    else -> {
+                        BirthdayScreen(viewModel = viewModel)
+                    }
                 }
             }
         }
     }
 
     if (showAdd) {
-        AddEventDialog(
-            projects  = projects,
-            onDismiss = { showAdd = false },
-            onSave    = { name, time, reminder, projectId ->
-                viewModel.addEvent(name, time, reminder, projectId)
-                showAdd = false
+        when (calState) {
+            CalState.BIRTHDAYS -> {
+                addBirthdayDialog(
+                    onDismiss = { showAdd = false },
+                    onSave = { name, month, day, yours ->
+                        viewModel.addBirthday(name, month, day, yours)
+                        showAdd = false
+                    }
+                )
             }
-        )
+            CalState.HOLIDAYS -> {
+                addHolidayDialog(
+                    onDismiss = { showAdd = false },
+                    onSave = { name, month, day, prefix ->
+                        viewModel.addHoliday(name, month, day, prefix)
+                        showAdd = false
+                    }
+                )
+            }
+            else -> {
+                AddEventDialog(
+                    projects = projects,
+                    onDismiss = { showAdd = false },
+                    onSave = { name, time, reminder, projectId ->
+                        viewModel.addEvent(name, time, reminder, projectId)
+                        showAdd = false
+                    }
+                )
+            }
+        }
+
     }
 
     if (showOptions) {
         OptionDialog(
+            viewModel = viewModel,
             onDismiss = { showOptions = false }
         )
     }
@@ -713,6 +794,135 @@ fun EventsScreen(viewModel: MainViewModel, onEditEvent: (Event) -> Unit) {
                         projectName = linkedProject?.name,
                         onEventMenu = { onEditEvent(event) },
                         onDelete = { viewModel.deleteEvent(event) }
+                    )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+@Composable
+fun BirthdayScreen(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val allBirthdays = birthDays.getUpcomingBirthdays(uiState.viewMonth,uiState.actualDay)
+
+    val months = arrayOf(
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    )
+
+    if (allBirthdays.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "No Birthdays saved yet",
+                fontFamily = BeVietnamPro,
+                color = AppColors.OnSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+        return
+    }
+
+    val grouped = allBirthdays.groupBy { it.month }.toSortedMap()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+    ) {
+        grouped.forEach { (month, list) ->
+            item {
+                Text(
+                    text = months[month - 1],
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = AppColors.Primary,
+                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
+                )
+                DashedDivider()
+            }
+
+            val days = list.groupBy { it.day }.toSortedMap()
+            days.forEach { (day, dayBirthdays) ->
+                item {
+                    Text(
+                        text = "Day $day",
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = AppColors.Tertiary,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                    )
+                }
+                items(dayBirthdays) { bday ->
+                    BirthdayRow(
+                        birthday = bday,
+                        iconColor = AppColors.Tertiary,
+                        onDelete = { viewModel.deleteBirthday(bday) }
+                    )
+                }
+            }
+        }
+        item { Spacer(Modifier.height(80.dp)) }
+    }
+}
+
+@Composable
+fun HolidayScreen(viewModel: MainViewModel) {
+    val uiState by viewModel.uiState.collectAsState()
+    val allHolidays = (holidays.getUpcomingHolidays(uiState.viewMonth,uiState.actualDay, uiState.viewYear)).distinctBy { it.name }
+
+    val months = arrayOf(
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    )
+
+    if (allHolidays.isEmpty()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                "No Holidays left",
+                fontFamily = BeVietnamPro,
+                color = AppColors.OnSurfaceVariant.copy(alpha = 0.5f)
+            )
+        }
+        return
+    }
+
+    val grouped = allHolidays.groupBy { it.month }.toSortedMap()
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
+    ) {
+        grouped.forEach { (month, list) ->
+            item {
+                Text(
+                    text = months[month - 1],
+                    fontFamily = PlusJakartaSans,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    color = AppColors.Primary,
+                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
+                )
+                DashedDivider()
+            }
+
+            val day = list.groupBy { it.day }.toSortedMap()
+            day.forEach { (day, dayHolidays) ->
+                item {
+                    Text(
+                        text = "Day $day",
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp,
+                        color = AppColors.Tertiary,
+                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                    )
+                }
+                items(dayHolidays) { holiday ->
+                    HolidayRow(
+                        holiday = holiday,
+                        iconColor = AppColors.Secondary,
+                        onDelete = { viewModel.deleteHoliday(holiday) }
                     )
                 }
             }
@@ -809,6 +1019,114 @@ private fun EventRow(
     }
 }
 
+@Composable
+private fun BirthdayRow(
+    birthday: birthday,
+    iconColor: Color = AppColors.Tertiary,
+    onDelete: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceContainerLow.copy(alpha = 0.8f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment   = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(iconColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = "🎂", fontSize = 20.sp)
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Text(
+                text = birthday.name,
+                modifier = Modifier.weight(1f),
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = AppColors.OnSurface
+            )
+
+            if (onDelete != null) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HolidayRow(
+    holiday: holiday,
+    iconColor: Color = AppColors.Secondary,
+    onDelete: (() -> Unit)? = null
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = AppColors.SurfaceContainerLow.copy(alpha = 0.8f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(iconColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = holiday.emoji, fontSize = 20.sp)
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Text(
+                text = holiday.name,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                fontFamily = PlusJakartaSans,
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = AppColors.OnSurface,
+
+            )
+
+            if (onDelete != null) {
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.6f),
+
+                    )
+                }
+            }
+        }
+    }
+}
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -849,9 +1167,9 @@ fun ProjectsTab(viewModel: MainViewModel) {
 
     if (showAdd && patterns.isNotEmpty()) {
         AddProjectDialog(
-            patterns  = patterns,
+            patterns = patterns,
             onDismiss = { showAdd = false },
-            onSave    = { name, patternId ->
+            onSave = { name, patternId ->
                 viewModel.addProject(name, patternId)
                 showAdd = false
             }
@@ -902,6 +1220,7 @@ fun PatternRow(pattern: Pattern, onCompMenu: ()-> Unit, onDelete: () -> Unit) {
 }
 @Composable
 private fun OptionDialog(
+    viewModel: MainViewModel,
     onDismiss: () -> Unit,
 ) {
     var showBirthdayDialog by remember { mutableStateOf(false) }
@@ -911,7 +1230,7 @@ private fun OptionDialog(
         addBirthdayDialog(
             onDismiss = { showBirthdayDialog = false },
             onSave = { name: String, month: Int, day: Int, mine: Boolean ->
-                addBirthday(name,month, day, mine)
+                viewModel.addBirthday(name, month, day, mine)
                 showBirthdayDialog = false
             }
         )
@@ -921,7 +1240,7 @@ private fun OptionDialog(
         addHolidayDialog(
             onDismiss = { showHolidayDialog = false },
             onSave = { name: String, month: Int, day: Int, prefix: String ->
-                addHoliday(name,month,day,prefix)
+                viewModel.addHoliday(name, month, day, prefix)
                 showHolidayDialog = false
             }
         )
@@ -932,16 +1251,6 @@ private fun OptionDialog(
         title   = { Text("Options", fontWeight = FontWeight.Bold) },
         text    = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                ListItem(
-                    headlineContent = { Text("Schedule", fontFamily = PlusJakartaSans) },
-                    leadingContent = { Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = AppColors.Primary) },
-                    modifier = Modifier.clickable { /* Handle Schedule */ }
-                )
-                ListItem(
-                    headlineContent = { Text("Reminders", fontFamily = PlusJakartaSans) },
-                    leadingContent = { Icon(Icons.Default.Notifications, contentDescription = null, tint = AppColors.Primary) },
-                    modifier = Modifier.clickable { /* Handle Reminders */ }
-                )
                 ListItem(
                     headlineContent = { Text("Add a birthday", fontFamily = PlusJakartaSans) },
                     leadingContent = { Icon(Icons.Default.Cake, contentDescription = null, tint = AppColors.Primary) },

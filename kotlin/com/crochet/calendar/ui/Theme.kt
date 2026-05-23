@@ -1,10 +1,11 @@
-package com.crochet.calendar
+package com.crochet.calendar.ui
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font
 import androidx.compose.ui.text.googlefonts.GoogleFont
+import com.crochet.calendar.R
 
 // ── Google Fonts provider ─────────────────────────────────────────────────────
 // Add to build.gradle: implementation("androidx.compose.ui:ui-text-google-fonts")
@@ -65,4 +66,7 @@ object AppColors {
     val StitchBrown         = Color(0xFF502F09)
     val StitchTan           = Color(0xFFBEB18B)
     val StitchCream         = Color(0xFFFCE7D2)
+
+    val deleteColor = Color(0xFF97150D)
+    val copyColor = Color(0xFF5B92AA)
 }

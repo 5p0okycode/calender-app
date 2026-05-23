@@ -1,6 +1,6 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.2.10"
+kotlin = "2.3.21"
 coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -13,6 +13,7 @@ activityKtx = "1.9.3"
 room = "2.8.4"
 composeBom = "2024.11.00"
 googleFonts = "1.7.5"
+ksp = "2.3.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -43,4 +44,4 @@ androidx-compose-googlefonts = { group = "androidx.compose.ui", name = "ui-text-
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
-ksp = { id = "com.google.devtools.ksp", version = "2.3.2" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

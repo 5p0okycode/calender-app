@@ -1,9 +1,12 @@
 package com.crochet.calendar
 
+import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
 import java.util.Calendar as JC
 
-class CalendarLogic {
+class CalendarLogic(context: Context? = null) {
+    private val appPrefs = context?.let { Prefs(it) }
+
     val months: Array<String> = arrayOf(
         "January", "February", "March",     "April",
         "May",     "June",     "July",      "August",
@@ -16,12 +19,12 @@ class CalendarLogic {
     )
 
 
-    // **Actual Day
+    // Actual Day
     val todayDay:   Int
     val todayMonth: Int  // 0-based (Jan = 0)
     val todayYear:  Int
 
-    // **Currently-viewed Day
+    // Currently-viewed Day
 
     var curMonth: Int
         private set //0 based again
@@ -44,6 +47,22 @@ class CalendarLogic {
         curYear  = todayYear
 
         leapYear()  // set correct Feb length for the current year
+
+        // Load persisted data
+        appPrefs?.let { prefs ->
+            // Load holidays
+            val savedHolidays = prefs.loadHolidays()
+            if (savedHolidays.isNotEmpty()) {
+                holidays.saved.clear()
+                holidays.saved.addAll(savedHolidays)
+            }
+            // Load birthdays
+            val savedBirthdays = prefs.loadBirthdays()
+            if (savedBirthdays.isNotEmpty()) {
+                birthDays.all.clear()
+                birthDays.all.addAll(savedBirthdays)
+            }
+        }
     }
 
     fun nextMonth() {
@@ -88,7 +107,26 @@ class CalendarLogic {
         fun isLeapYear(year: Int): Boolean =
             year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)
     }
+
+    fun saveCustomHolidays() {
+        appPrefs?.saveHolidays(holidays.saved)
+    }
+
+    fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
+        holidays.addHoliday(name, month, day, prefix)
+        saveCustomHolidays()
+    }
+
+    fun saveBirthdays() {
+        appPrefs?.saveBirthdays(birthDays.all)
+    }
+
+    fun addBirthday(name: String, month: Int, day: Int, yours: Boolean) {
+        birthDays.addBirthday(name, month, day, yours)
+        saveBirthdays()
+    }
 }
+
 data class birthday(
     val name:  String,
     val month: Int,
@@ -104,13 +142,19 @@ object birthDays {
     fun getBirthdayForDay(month: Int, day: Int): List<birthday> {
         return all.filter { it.month == month && it.day == day }
     }
+    fun getUpcomingBirthdays(month: Int, day: Int): List<birthday> {
+        return all.filter { it.month >= month && it.day >= day }
+    }
+    fun getAllBirthdays(month: Int, day: Int): List<birthday> {
+        return all
+    }
     fun addBirthday(name:  String, month: Int, day: Int, yours: Boolean) {
         all.add(birthday(name, month, day, yours))
     }
 }
 
-//for funsies, got lazy and used ai to make a list of holidays
-data class Holiday(
+//no more funsies
+data class holiday(
     val name:  String,
     val month: Int,
     val day:   Int,
@@ -118,44 +162,30 @@ data class Holiday(
     val prefix: String = "happy"
 )
 
-object Holidays {
-    // ── Custom holidays ───────────────────────────────────────────────────────
-    val customHolidays = mutableStateListOf<Holiday>()
-
-    // ── Fixed-date holidays ───────────────────────────────────────────────────
-
-    val fixed = listOf(
-
-        // ── American ─────────────────────────────────────────────────────────
-
-        Holiday("New Year's Day",         1,  1,  "🎆"),
-        Holiday("Valentine's Day",        2,  14, "💝"),
-        Holiday("St. Patrick's Day",      3,  17, "☘️"),
-        Holiday("Independence Day",       7,  4,  "🇺🇸"),
-        Holiday("Halloween",              10, 31, "🎃"),
-        Holiday("Veterans Day",           11, 11, "🎖️"),
-        Holiday("Christmas Eve",          12, 24, "🌟", "merry"),
-        Holiday("Christmas Day",          12, 25, "🎄", "merry"),
-        Holiday("New Year's Eve",         12, 31, "🥂"),
-
-        // ── German ───────────────────────────────────────────────────────────
-
-        Holiday("Heilige Drei Könige",               1,  6,  "⭐"),   // Heilige Drei Könige (BY, BW, ST)
-        Holiday("Internationaler Frauentag", 3, 8, "💐"),  // Internationaler Frauentag (BE, MV, TH)
-        Holiday("Tag der Arbeit",             5,  1,  "⚒️"),   // Tag der Arbeit
-        Holiday("Mariä Himmelfahrt",     8,  15, "🕊️"),  // Mariä Himmelfahrt (BY, SL)
-        Holiday("Tag der Deutschen Einheit",       10, 3,  "🇩🇪"),  // Tag der Deutschen Einheit
-        Holiday("Reformationstag",        10, 31, "⛪"),   // Reformationstag (BB, HB, HH, MV, NI, SN, ST, SH, TH)
-        Holiday("Allerheiligen",        11, 1,  "🕯️"),  // Allerheiligen (BW, BY, NW, RP, SL)
-        Holiday("Nikolaustag",       12, 6,  "🎅"),   // Nikolaustag (traditional)
-        Holiday("1. Weinachtstag",          12, 25, "🎄", "frohe"),   // 1. Weihnachtstag
-        Holiday("2. Weihnachtstag",   12, 26, "🎁", "frohe"),   // 2. Weihnachtstag
+object holidays {
+    val saved= mutableStateListOf<holiday>(
+        holiday("New Year's Day",         1,  1,  "🎆"),
+        holiday("Valentine's Day",        2,  14, "💝"),
+        holiday("St. Patrick's Day",      3,  17, "☘️"),
+        holiday("Independence Day",       7,  4,  "🇺🇸"),
+        holiday("Halloween",              10, 31, "🎃"),
+        holiday("Veterans Day",           11, 11, "🎖️"),
+        holiday("Christmas Eve",          12, 24, "🌟", "merry"),
+        holiday("Christmas Day",          12, 25, "🎄", "merry"),
+        holiday("New Year's Eve",         12, 31, "🥂"),
+        holiday("Heilige Drei Könige",               1,  6,  "⭐"),   // Heilige Drei Könige (BY, BW, ST)
+        holiday("Internationaler Frauentag", 3, 8, "💐"),  // Internationaler Frauentag (BE, MV, TH)
+        holiday("Tag der Arbeit",             5,  1,  "⚒️"),   // Tag der Arbeit
+        holiday("Mariä Himmelfahrt",     8,  15, "🕊️"),  // Mariä Himmelfahrt (BY, SL)
+        holiday("Tag der Deutschen Einheit",       10, 3,  "🇩🇪"),  // Tag der Deutschen Einheit
+        holiday("Reformationstag",        10, 31, "⛪"),   // Reformationstag (BB, HB, HH, MV, NI, SN, ST, SH, TH)
+        holiday("Allerheiligen",        11, 1,  "🕯️"),  // Allerheiligen (BW, BY, NW, RP, SL)
+        holiday("Nikolaustag",       12, 6,  "🎅"),   // Nikolaustag (traditional)
+        holiday("1. Weinachtstag",          12, 25, "🎄", "frohe"),   // 1. Weihnachtstag
+        holiday("2. Weihnachtstag",   12, 26, "🎁", "frohe"),   // 2. Weihnachtstag
     )
 
-    // ── Calculated holidays (change every year) ───────────────────────────────
-    // Easter is the anchor for most moveable holidays.
-    // Uses the Anonymous Gregorian algorithm.
-
+    //stupid easter logic(made by ai)
     fun easterSunday(year: Int): Pair<Int, Int> {
         val a = year % 19
         val b = year / 100
@@ -182,7 +212,7 @@ object Holidays {
         return Pair(cal.get(java.util.Calendar.MONTH) + 1, cal.get(java.util.Calendar.DAY_OF_MONTH))
     }
 
-    fun moveable(year: Int): List<Holiday> {
+    fun moveable(year: Int): List<holiday> {
         val (easterMonth, easterDay) = easterSunday(year)
 
         fun offset(n: Int): Pair<Int, Int> = addDays(easterMonth, easterDay, year, n)
@@ -193,8 +223,6 @@ object Holidays {
         val (whitSunM,   whitSunD)   = offset(49)    // Whit Sunday / Pfingstsonntag
         val (whitMonM,   whitMonD)   = offset(50)    // Whit Monday / Pfingstmontag
         val (corpusM,    corpusD)    = offset(60)    // Corpus Christi / Fronleichnam (BW, BY, HE, NW, RP, SL)
-
-        // US moveable holidays (calculated by weekday rules)
         val mlkDay        = nthWeekday(year, 1,  java.util.Calendar.MONDAY, 3)   // 3rd Mon Jan
         val presidentsDay = nthWeekday(year, 2,  java.util.Calendar.MONDAY, 3)   // 3rd Mon Feb
         val memorialDay   = lastWeekday(year, 5,  java.util.Calendar.MONDAY)     // Last Mon May
@@ -205,28 +233,23 @@ object Holidays {
         val fatherDay     = nthWeekday(year, 6,  java.util.Calendar.SUNDAY, 3)   // 3rd Sun Jun
 
         return listOf(
-            // ── American moveable ─────────────────────────────────────────────
-            Holiday("Martin Luther King Jr. Day", mlkDay.first,        mlkDay.second,        "✊"),
-            Holiday("Presidents' Day",            presidentsDay.first,  presidentsDay.second, "🏛️"),
-            Holiday("Mother's Day",               motherDay.first,      motherDay.second,     "💐"),
-            Holiday("Memorial Day",               memorialDay.first,    memorialDay.second,   "🪖"),
-            Holiday("Father's Day",               fatherDay.first,      fatherDay.second,     "👔"),
-            Holiday("Labor Day",                  laborDay.first,       laborDay.second,      "⚒️"),
-            Holiday("Columbus Day",               columbusDay.first,    columbusDay.second,   "⛵"),
-            Holiday("Thanksgiving",               thanksgiving.first,   thanksgiving.second,  "🦃"),
-
-            // ── German moveable (Easter-based) ────────────────────────────────
-            Holiday("Karfreitag",     goodFriM,   goodFriD,   "✝️"),  // Karfreitag
-            Holiday("Ostersonntag",   easterMonth, easterDay,  "🐣"),  // Ostersonntag
-            Holiday("Ostermontag",   easterMonM, easterMonD, "🥚"),  // Ostermontag
-            Holiday("Christi Himmelfahrt",   ascM,       ascD,       "☁️"),  // Christi Himmelfahrt
-            Holiday("Pfingstsonntag",     whitSunM,   whitSunD,   "🕊️"), // Pfingstsonntag
-            Holiday("Pfingstmontag",     whitMonM,   whitMonD,   "🌸"),  // Pfingstmontag
-            Holiday("Fronleichnam",  corpusM,    corpusD,    "🌿"),  // Fronleichnam
+            holiday("Martin Luther King Jr. Day", mlkDay.first,        mlkDay.second,        "✊"),
+            holiday("Presidents' Day",            presidentsDay.first,  presidentsDay.second, "🏛️"),
+            holiday("Mother's Day",               motherDay.first,      motherDay.second,     "💐"),
+            holiday("Memorial Day",               memorialDay.first,    memorialDay.second,   "🪖"),
+            holiday("Father's Day",               fatherDay.first,      fatherDay.second,     "👔"),
+            holiday("Labor Day",                  laborDay.first,       laborDay.second,      "⚒️"),
+            holiday("Columbus Day",               columbusDay.first,    columbusDay.second,   "⛵"),
+            holiday("Thanksgiving",               thanksgiving.first,   thanksgiving.second,  "🦃"),
+            holiday("Karfreitag",     goodFriM,   goodFriD,   "✝️"),  // Karfreitag
+            holiday("Ostersonntag",   easterMonth, easterDay,  "🐣"),  // Ostersonntag
+            holiday("Ostermontag",   easterMonM, easterMonD, "🥚"),  // Ostermontag
+            holiday("Christi Himmelfahrt",   ascM,       ascD,       "☁️"),  // Christi Himmelfahrt
+            holiday("Pfingstsonntag",     whitSunM,   whitSunD,   "🕊️"), // Pfingstsonntag
+            holiday("Pfingstmontag",     whitMonM,   whitMonD,   "🌸"),  // Pfingstmontag
+            holiday("Fronleichnam",  corpusM,    corpusD,    "🌿"),  // Fronleichnam
         )
     }
-
-    // ── Weekday calculation helpers ───────────────────────────────────────────
 
     // nth occurrence of a weekday in a month, e.g. 3rd Monday of January
     private fun nthWeekday(year: Int, month: Int, weekday: Int, n: Int): Pair<Int, Int> {
@@ -253,22 +276,35 @@ object Holidays {
         return Pair(month, cal.get(java.util.Calendar.DAY_OF_MONTH))
     }
 
-    // ── Main lookup — call this from your calendar grid ───────────────────────
-
     private var cachedYear: Int = -1
-    private var cachedMoveable: List<Holiday> = emptyList()
+    private var cachedMoveable: List<holiday> = emptyList()
 
-    fun getForDay(month: Int, day: Int, year: Int): List<Holiday> {
+    fun getForDay(month: Int, day: Int, year: Int): List<holiday> {
         if (year != cachedYear) {
             cachedYear = year
             cachedMoveable = moveable(year)
         }
-        val allFixed    = (fixed + customHolidays).filter { it.month == month && it.day == day }
+        val allSaved = (saved).filter { it.month == month && it.day == day }
         val allMoveable = cachedMoveable.filter { it.month == month && it.day == day }
-        // Deduplicate Christmas which appears in both US and German fixed lists
-        return (allFixed + allMoveable).distinctBy { it.name }
+        return (allSaved + allMoveable).distinctBy { it.name }
     }
     fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
-        customHolidays.add(Holiday(name, month, day, "🎉", prefix))
+        saved.add(holiday(name, month, day, "🎉", prefix))
+    }
+    fun getAllHolidays(year: Int): List<holiday>{
+        if (year != cachedYear) {
+            cachedYear = year
+            cachedMoveable = moveable(year)
+        }
+        return (saved + cachedMoveable).distinctBy { it.name }
+    }
+    fun getUpcomingHolidays(month: Int, day: Int, year: Int): List<holiday>{
+        if (year != cachedYear) {
+            cachedYear = year
+            cachedMoveable = moveable(year)
+        }
+        val allSaved = (saved).filter { it.month >= month && it.day >= day }
+        val allMoveable = cachedMoveable.filter { it.month >= month && it.day >= day }
+        return (allSaved + allMoveable).distinctBy { it.name }
     }
 }

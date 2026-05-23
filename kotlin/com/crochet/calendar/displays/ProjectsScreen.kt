@@ -1,4 +1,4 @@
-package com.crochet.calendar
+package com.crochet.calendar.displays
 
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState
@@ -32,6 +32,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewModelScope
+import com.crochet.calendar.ui.AppColors
+import com.crochet.calendar.ui.BeVietnamPro
+import com.crochet.calendar.data.Component
+import com.crochet.calendar.MainViewModel
+import com.crochet.calendar.data.Pattern
+import com.crochet.calendar.ui.PlusJakartaSans
+import com.crochet.calendar.data.Project
 import com.crochet.calendar.ui.DashedDivider
 import com.crochet.calendar.ui.GrainOverlay
 import com.crochet.calendar.ui.StitchedCard
@@ -168,7 +175,7 @@ fun ProjectsScreen(viewModel: MainViewModel) {
 
 @Composable
 fun ProjectCard(
-    pwp:        Project,
+    pwp: Project,
     pattern:    Pattern?,
     components: List<Component>,
     onClick:    () -> Unit,
@@ -278,7 +285,7 @@ fun ProjectCard(
 @Composable
 fun ProjectDetailScreen(
     pwpInitial: Project,
-    viewModel:  MainViewModel,
+    viewModel: MainViewModel,
     onBack:     () -> Unit
 ) {
     val projects    by viewModel.projects.collectAsState()
@@ -444,7 +451,7 @@ fun ProjectDetailScreen(
 
 @Composable
 fun ProjectComponentCard(
-    component:   Component,
+    component: Component,
     stepsDone:   Int,
     stepsTotal:  Int,
     isCurrent:   Boolean,
@@ -453,13 +460,13 @@ fun ProjectComponentCard(
     onSetSteps:  (Int) -> Unit
 ) {
     val progress    = if (stepsTotal > 0) stepsDone.toFloat() / stepsTotal else 0f
-    val isComplete  = stepsDone >= stepsTotal && stepsTotal > 0
+    val isComplete  = stepsTotal in 1..stepsDone
     var isEditing   by remember { mutableStateOf(false) }
     var editValue   by remember(stepsDone) { mutableStateOf(stepsDone.toString()) }
 
     StitchedCard(
         modifier = Modifier.fillMaxWidth().then(
-            if (isCurrent) Modifier.border(
+            if (isCurrent) Modifier.Companion.border(
                 2.dp,
                 AppColors.Primary.copy(alpha = 0.5f),
                 RoundedCornerShape(12.dp)
@@ -720,9 +727,9 @@ fun AddProjectSheet(
             SheetLabel("Project Name")
             Spacer(Modifier.height(6.dp))
             StitchedTextField(
-                value         = name,
+                value = name,
                 onValueChange = { name = it },
-                placeholder   = "e.g. Mum's Birthday Cardigan"
+                placeholder = "e.g. Mum's Birthday Cardigan"
             )
 
             if (patterns.isNotEmpty()) {
@@ -772,8 +779,13 @@ fun AddProjectSheet(
 
             Spacer(Modifier.height(28.dp))
             WoodenButton(
-                text    = "Create Project",
-                onClick = { if (name.isNotBlank() && selected != null) onSave(name, selected!!.id) },
+                text = "Create Project",
+                onClick = {
+                    if (name.isNotBlank() && selected != null) onSave(
+                        name,
+                        selected!!.id
+                    )
+                },
                 enabled = name.isNotBlank() && selected != null
             )
         }

@@ -1,8 +1,7 @@
-package com.crochet.calendar
+package com.crochet.calendar.data
 
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
-import java.time.MonthDay
 
 @Dao
 interface EventDao {

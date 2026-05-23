@@ -1,4 +1,4 @@
-package com.crochet.calendar
+package com.crochet.calendar.data
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
@@ -103,17 +103,47 @@ data class Component(
         return copy(steps = newSteps)
     }
 
-    fun moveStep(i: Int, Dir: Boolean): Component { // if dir move right
+    fun duplicateStep(i: Int): Component = //made it because i was lazy(pls don't judge)
+        addStep(steps.get(i),i)
+
+    fun moveStep(i: Int, Dir: Boolean): Component { // archaeic method
         if (Dir&&i>=steps.size-1 || !Dir&&i<=0) return this
         val newSteps = steps.toMutableList()
         val targetIndex = if (Dir) i + 1 else i - 1
-        
+
         val temp = newSteps[i]
         newSteps[i] = newSteps[targetIndex]
         newSteps[targetIndex] = temp
 
         return copy(steps = newSteps)
     }
+    fun shiftStep(start: Int, end: Int): Component {
+        if (steps.isEmpty()) return this
+        val safeStart = start.coerceIn(steps.indices)
+        val safeEnd = end.coerceIn(steps.indices)
+        if (safeStart == safeEnd) return this
+        val newSteps = steps.toMutableList()
+        val item = newSteps.removeAt(safeStart)
+        newSteps.add(safeEnd, item)
+        return copy(steps = newSteps)
+    }
+
+    /*
+        fun shiftStepjavaver(start: Int, end:Int): Component {
+        if (start>steps.size-1 && start<0) return this
+        val newSteps = steps.toMutableList()
+        if(start<end){
+            for(int i = Math.min(end,steps.size-1; i>start; i--) {
+                moveStep(i,false)
+            }
+        } if(start>end) {
+            for(int i = Math.max(end,0); i<start; i++) {
+                moveStep(i,true)
+            }
+        }
+        return copy(steps = newSteps)
+        }
+     */
 
     fun removeStep(): Component =
         if (steps.isEmpty()) this

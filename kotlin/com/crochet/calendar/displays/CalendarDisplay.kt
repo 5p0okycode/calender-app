@@ -1,48 +1,39 @@
-package com.crochet.calendar
+package com.crochet.calendar.displays
 
 import androidx.compose.animation.*
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.crochet.calendar.AppColors
-import com.crochet.calendar.PlusJakartaSans
-import com.crochet.calendar.R
-import java.time.Month
+import com.crochet.calendar.ui.AppColors
+import com.crochet.calendar.data.Event
+import com.crochet.calendar.ui.PlusJakartaSans
+import com.crochet.calendar.data.Project
 
 private val DOW = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
 
-// Colour constants — replace with your actual theme imports if you have them
+// Color constants — replace with your actual theme imports if you have them
 private val Primary            = Color(0xFF526447)
 private val PrimaryContainer   = Color(0xFFD4E9C4)
 private val OnPrimary          = Color(0xFFECFFDD)
@@ -248,7 +239,6 @@ fun EventMenuDialog(
                         label = { Text("Link Project") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
-                            .menuAnchor()
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(

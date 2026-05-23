@@ -1,29 +1,41 @@
 package com.crochet.calendar.ui
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.crochet.calendar.AppColors
-import com.crochet.calendar.R
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Custom Shape for the Bottom Bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+val DipsyBottomBarShape = GenericShape { size, _ ->
+    val w = size.width
+    val h = size.height
+    val startY = 0f
+    moveTo(0f, startY)
+    lineTo(20f * (w / 400f), startY - 24f)
+    lineTo(25f * (w / 400f), startY - 26f)
+    lineTo(w - 25f * (w / 400f), startY - 26f)
+    lineTo(w - 20f * (w / 400f), startY - 24f)
+    lineTo(w, startY)
+    lineTo(w, h)
+    lineTo(0f, h)
+    close()
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // StitchedCard
@@ -121,25 +133,24 @@ fun DashedDivider(modifier: Modifier = Modifier) {
     Spacer(
         modifier = modifier
             .fillMaxWidth()
-            .height(12.dp) // Height to accommodate the hand-drawn dip
+            .height(26.dp)
             .drawWithContent {
                 val path = Path().apply {
                     val w = size.width
-                    // SVG path translated: M0,8 L5,16 L10,18 L390,18 L395,16 L400,8
-                    // We normalize the 400 coordinates to actual width
-                    moveTo(0f, 0f)
-                    lineTo(20f * (w/400f), 24f)
-                    lineTo(25f * (w/400f), 26f)
-                    lineTo(w - 25f * (w/400f), 26f)
-                    lineTo(w - 20f * (w/400f), 24f)
-                    lineTo(w, 0f)
+                    val startY = 12f
+                    moveTo(0f, startY)
+                    lineTo(20f * (w/400f), startY + 24f)
+                    lineTo(25f * (w/400f), startY + 26f)
+                    lineTo(w - 25f * (w/400f), startY + 26f)
+                    lineTo(w - 20f * (w/400f), startY + 24f)
+                    lineTo(w, startY)
                 }
                 
                 drawPath(
                     path = path,
                     color = AppColors.Outline.copy(alpha = 0.4f),
                     style = Stroke(
-                        width = 3.dp.toPx(),
+                        width = 2.dp.toPx(),
                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(30f, 20f), 0f)
                     )
                 )

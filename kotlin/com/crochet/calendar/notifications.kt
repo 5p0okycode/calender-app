@@ -8,7 +8,8 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import java.util.Calendar as JC
-
+import com.crochet.calendar.data.Event
+import com.crochet.calendar.data.Pattern
 class EventReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val eventName = intent.getStringExtra("event_name") ?: "Event Reminder"
@@ -130,7 +131,7 @@ class NotificationHelper(private val context: Context) {
         }
     }
     
-    fun holidayNotification(holiday: Holiday, year: Int) {
+    fun holidayNotification(holiday: holiday, year: Int) {
         // Build the time to fire
         val cal = JC.getInstance().apply {
             set(JC.YEAR,         year)

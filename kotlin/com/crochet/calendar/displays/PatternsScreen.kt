@@ -1,7 +1,10 @@
-package com.crochet.calendar
+package com.crochet.calendar.displays
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,12 +23,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.ImeAction
 import androidx.lifecycle.viewModelScope
+import com.crochet.calendar.ui.AppColors
+import com.crochet.calendar.ui.BeVietnamPro
+import com.crochet.calendar.data.Component
+import com.crochet.calendar.MainViewModel
+import com.crochet.calendar.data.Pattern
+import com.crochet.calendar.PatternRow
+import com.crochet.calendar.ui.PlusJakartaSans
 import com.crochet.calendar.ui.DashedDivider
 import com.crochet.calendar.ui.GrainOverlay
 import com.crochet.calendar.ui.StitchedCard
@@ -39,7 +52,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PatternsScreen(viewModel: MainViewModel) {
+fun PatternScreen(viewModel: MainViewModel) {
 
     val patterns        by viewModel.patterns.collectAsState()
     val allComponents   by viewModel.allComponents.collectAsState()
@@ -170,7 +183,7 @@ fun PatternsScreen(viewModel: MainViewModel) {
 
 @Composable
 fun PatternCard(
-    pwc:            Pattern,
+    pwc: Pattern,
     componentCount: Int,
     onClick:        () -> Unit,
     onDelete:       () -> Unit
@@ -258,7 +271,7 @@ fun PatternCard(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PatternDetailScreen(
-    pwc:       Pattern,
+    pwc: Pattern,
     viewModel: MainViewModel,
     onBack:    () -> Unit
 ) {
@@ -520,7 +533,7 @@ fun ComponentCard(
                                 leadingIcon = { Icon(Icons.Outlined.Edit, null) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Delete", color = Color.Red) },
+                                text = { Text("Delete", color = AppColors.deleteColor.copy(alpha = 0.8f)) },
                                 onClick = {
                                     showMenu = false
                                     onDelete()
@@ -529,7 +542,7 @@ fun ComponentCard(
                                     Icon(
                                         Icons.Outlined.Delete,
                                         null,
-                                        tint = Color.Red
+                                        tint = AppColors.deleteColor
                                     )
                                 }
                             )
@@ -920,7 +933,7 @@ fun StitchedTextField(
             focusedTextColor        = AppColors.OnSurface,
             unfocusedTextColor      = AppColors.OnSurface
         ),
-        textStyle     = androidx.compose.ui.text.TextStyle(
+        textStyle     = TextStyle(
             fontFamily = BeVietnamPro,
             fontSize   = 14.sp
         ),
@@ -1017,6 +1030,12 @@ fun ComponentMenuDialog(
     var currentComponent by remember { mutableStateOf(component) }
     var stepInput by remember { mutableStateOf("") }
 
+    var editingStepIndex by remember { mutableStateOf<Int?>(null) }
+    var editingStepText  by remember { mutableStateOf("") }
+
+    var draggingIndex by remember { mutableStateOf<Int?>(null) }
+    var dragOffsetY   by remember { mutableStateOf(0f) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor   = AppColors.Background,
@@ -1037,14 +1056,16 @@ fun ComponentMenuDialog(
                     Icon(
                         Icons.Outlined.Delete,
                         contentDescription = "Delete component",
-                        tint               = Color(0xFFB3261E)
+                        tint               = AppColors.deleteColor
                     )
                 }
             }
         },
         text = {
             Column(
-                modifier            = Modifier.fillMaxWidth(),
+                modifier            = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column {
@@ -1053,7 +1074,7 @@ fun ComponentMenuDialog(
                     StitchedTextField(
                         value         = name,
                         onValueChange = { name = it },
-                        placeholder   = "e.g. Left Sleeve"
+                        placeholder   = "e.g. Body"
                     )
                 }
 
@@ -1063,7 +1084,7 @@ fun ComponentMenuDialog(
                     StitchedTextField(
                         value         = numInput,
                         onValueChange = { if (it.all { c -> c.isDigit() }) numInput = it },
-                        placeholder   = "e.g. 2"
+                        placeholder   = "e.g. 1"
                     )
                 }
 
@@ -1071,24 +1092,64 @@ fun ComponentMenuDialog(
                     SheetLabel("Steps")
                     Spacer(Modifier.height(8.dp))
                     
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.animateContentSize()
+                    ) {
                         currentComponent.steps.forEachIndexed { i, step ->
+                            val isBeingDragged = i == draggingIndex
+                            val liftScale by animateFloatAsState(if (isBeingDragged) 1.05f else 1f)
+                            val liftShadow by animateDpAsState(if (isBeingDragged) 8.dp else 0.dp)
+
                             Row(
                                 modifier              = Modifier
                                     .fillMaxWidth()
+                                    .graphicsLayer {
+                                        scaleX = liftScale
+                                        scaleY = liftScale
+                                        shadowElevation = liftShadow.toPx()
+                                        if (isBeingDragged) {
+                                            translationY = dragOffsetY
+                                        }
+                                    }
                                     .background(AppColors.Surface, RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .pointerInput(i) {
+                                        detectDragGestures(
+                                            onDragStart = { 
+                                                draggingIndex = i 
+                                                dragOffsetY = 0f
+                                            },
+                                            onDragEnd = { 
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                            },
+                                            onDragCancel = { 
+                                                draggingIndex = null
+                                                dragOffsetY = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragOffsetY += dragAmount.y
+                                                
+                                                val currentIndex = draggingIndex ?: i
+                                                val itemHeight = 140f 
+                                                
+                                                if (dragOffsetY > itemHeight / 2 && currentIndex < currentComponent.steps.size - 1) {
+                                                    currentComponent = currentComponent.shiftStep(currentIndex, currentIndex + 1)
+                                                    draggingIndex = currentIndex + 1
+                                                    dragOffsetY -= itemHeight
+                                                } else if (dragOffsetY < -itemHeight / 2 && currentIndex > 0) {
+                                                    currentComponent = currentComponent.shiftStep(currentIndex, currentIndex - 1)
+                                                    draggingIndex = currentIndex - 1
+                                                    dragOffsetY += itemHeight
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 verticalAlignment     = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                // Drag Handle / Order Indicator
-                                Icon(
-                                    Icons.Outlined.DragIndicator,
-                                    contentDescription = null,
-                                    tint = AppColors.OutlineVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-
                                 Box(
                                     modifier = Modifier
                                         .size(24.dp)
@@ -1114,39 +1175,39 @@ fun ComponentMenuDialog(
                                 )
                                 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Move Up
                                     IconButton(
-                                        onClick  = { currentComponent = currentComponent.moveStep(i, false) },
-                                        enabled  = i > 0,
+                                        onClick  = { 
+                                            editingStepIndex = i
+                                            editingStepText = step
+                                        },
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            Icons.Outlined.KeyboardArrowUp, 
-                                            null, 
+                                            Icons.Outlined.Edit, 
+                                            contentDescription = "Edit Step",
                                             modifier = Modifier.size(18.dp), 
-                                            tint = if(i > 0) AppColors.Primary else AppColors.OutlineVariant.copy(alpha = 0.3f)
+                                            tint = AppColors.Primary.copy(alpha = 0.8f)
                                         )
                                     }
-
-                                    // Move Down
                                     IconButton(
-                                        onClick  = { currentComponent = currentComponent.moveStep(i, true) },
-                                        enabled  = i < currentComponent.steps.size - 1,
+                                        onClick  = { currentComponent = currentComponent.duplicateStep(i) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Icon(
-                                            Icons.Outlined.KeyboardArrowDown, 
-                                            null, 
-                                            modifier = Modifier.size(18.dp), 
-                                            tint = if(i < currentComponent.steps.size - 1) AppColors.Primary else AppColors.OutlineVariant.copy(alpha = 0.3f)
-                                        )
+                                            Icons.Outlined.FileCopy,
+                                            "makes copy of step",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = AppColors.copyColor.copy(alpha = 0.8f))
                                     }
-
                                     IconButton(
                                         onClick  = { currentComponent = currentComponent.removeStep(i) },
                                         modifier = Modifier.size(32.dp)
                                     ) {
-                                        Icon(Icons.Outlined.DeleteOutline, null, modifier = Modifier.size(18.dp), tint = Color(0xFFB3261E).copy(alpha = 0.8f))
+                                        Icon(
+                                            Icons.Outlined.DeleteOutline,
+                                            "delete Step",
+                                            modifier = Modifier.size(18.dp),
+                                            tint = AppColors.deleteColor.copy(alpha = 0.8f))
                                     }
                                 }
                             }
@@ -1204,6 +1265,53 @@ fun ComponentMenuDialog(
             }
         }
     )
+
+    if (editingStepIndex != null) {
+        AlertDialog(
+            onDismissRequest = { editingStepIndex = null },
+            title = { Text("Edit Step", fontWeight = FontWeight.Bold) },
+            text = {
+                StitchedTextField(
+                    value = editingStepText,
+                    onValueChange = { editingStepText = it },
+                    placeholder = "Step text",
+                    singleLine = false
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val idx = editingStepIndex!!
+                        val newList = currentComponent.steps.toMutableList()
+                        newList[idx] = editingStepText.trim()
+                        currentComponent = currentComponent.copy(steps = newList)
+                        editingStepIndex = null
+                    }
+                ) {
+                    Text("Done")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingStepIndex = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+fun dragSteps(
+    index: Int,
+    dragAmount: Float,
+    stepsCount: Int,
+    onShift: (Int, Int) -> Unit
+) {
+    val threshold = 100f // pixels
+    if (dragAmount > threshold && index < stepsCount - 1) {
+        onShift(index, index + 1)
+    } else if (dragAmount < -threshold && index > 0) {
+        onShift(index, index - 1)
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
