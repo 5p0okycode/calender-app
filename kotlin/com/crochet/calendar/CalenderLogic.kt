@@ -150,7 +150,7 @@ object birthDays {
     //var all = mutableStateListOf<birthday>( birthday("Victor", 5, 14, true), birthday("Someone", 5, 13, false) )
 
     fun getBirthdayForDay(month: Int, day: Int): List<birthday> {
-        return all.filter { it.month == month+1 && it.day == day }
+        return all.filter { it.month == month && it.day == day }
     }
     fun getUpcomingBirthdays(month: Int, day: Int): List<birthday> {
         return all.filter { (it.month == month+1 && it.day >= day) || (it.month > month+1) }
