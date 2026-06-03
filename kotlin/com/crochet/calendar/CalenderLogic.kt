@@ -81,6 +81,16 @@ class CalendarLogic(context: Context? = null) {
         curMonth = ((curMonth - 1) + 12) % 12
     }
 
+    fun nextYear() {
+        curYear++
+        leapYear()
+    }
+
+    fun prevYear() {
+        curYear--
+        leapYear()
+    }
+
     //leap years are every feb 29 2000+-4x
     fun leapYear() {
         monthLen[1] = if (isLeapYear(curYear)) 29 else 28
@@ -140,16 +150,19 @@ object birthDays {
     //var all = mutableStateListOf<birthday>( birthday("Victor", 5, 14, true), birthday("Someone", 5, 13, false) )
 
     fun getBirthdayForDay(month: Int, day: Int): List<birthday> {
-        return all.filter { it.month == month && it.day == day }
+        return all.filter { it.month == month+1 && it.day == day }
     }
     fun getUpcomingBirthdays(month: Int, day: Int): List<birthday> {
-        return all.filter { it.month >= month && it.day >= day }
+        return all.filter { (it.month == month+1 && it.day >= day) || (it.month > month+1) }
     }
-    fun getAllBirthdays(month: Int, day: Int): List<birthday> {
+    fun getAllBirthdays(): List<birthday> {
         return all
     }
     fun addBirthday(name:  String, month: Int, day: Int, yours: Boolean) {
         all.add(birthday(name, month, day, yours))
+    }
+    fun insertBirthday(birth: birthday){
+        all.add(birth)
     }
 }
 
@@ -291,6 +304,9 @@ object holidays {
     fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
         saved.add(holiday(name, month, day, "🎉", prefix))
     }
+    fun insertHoliday(hol : holiday) {
+        saved.add(hol)
+    }
     fun getAllHolidays(year: Int): List<holiday>{
         if (year != cachedYear) {
             cachedYear = year
@@ -303,8 +319,8 @@ object holidays {
             cachedYear = year
             cachedMoveable = moveable(year)
         }
-        val allSaved = (saved).filter { it.month >= month && it.day >= day }
-        val allMoveable = cachedMoveable.filter { it.month >= month && it.day >= day }
+        val allSaved = (saved).filter { (it.month == month+1 && it.day >= day) || (it.month>month+1) }
+        val allMoveable = cachedMoveable.filter { (it.month == month+1 && it.day >= day) || (it.month>month+1) }
         return (allSaved + allMoveable).distinctBy { it.name }
     }
 }

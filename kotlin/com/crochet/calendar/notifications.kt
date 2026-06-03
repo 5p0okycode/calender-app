@@ -47,11 +47,6 @@ class EventReminderReceiver : BroadcastReceiver() {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// 2. NotificationHelper — schedules and cancels reminders
-//    Call scheduleReminder() when the user saves an event with reminder = true
-// ─────────────────────────────────────────────────────────────────────────────
-
 class NotificationHelper(private val context: Context) {
 
     // Create the notification channel — call this once in Application.onCreate()
@@ -179,8 +174,54 @@ class NotificationHelper(private val context: Context) {
             )
         }
     }
+    fun birthdayNotification(birthday: birthday, year: Int) {
+        // Build the time to fire
+        val cal = JC.getInstance().apply {
+            set(JC.YEAR,         year)
+            set(JC.MONTH,        birthday.month - 1)
+            set(JC.DAY_OF_MONTH, birthday.day)
+            set(JC.HOUR_OF_DAY,  0)
+            set(JC.MINUTE,       0)
+            set(JC.SECOND,       0)
+            set(JC.MILLISECOND,  0)
+        }
 
-    // Cancel a reminder when an event is deleted
+        // If time is already passed, don't schedule
+        if (cal.timeInMillis <= System.currentTimeMillis()) {
+            Log.w("CrochetNotifications", "birthday already passed")
+            return
+        }
+
+        Log.d("CrochetNotifications", "Scheduling birthday notification for ${birthday.name} at ${cal.time}")
+        val birthdayMessage = if(birthday.yours) "Happy Birthday" else "Wish ${birthday.name} a happy Birthday"
+        val birthdayId = birthday.name.hashCode() //stupid 2 people can have the same name
+
+        val intent = Intent(context, EventReminderReceiver::class.java).apply {
+            putExtra("event_name", birthdayMessage)
+            putExtra("event_id",   birthdayId)
+        }
+
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            birthdayId,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val alarmManager = context.getSystemService(AlarmManager::class.java)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !alarmManager.canScheduleExactAlarms()) {
+            alarmManager.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+        } else {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                cal.timeInMillis,
+                pendingIntent
+            )
+        }
+    }
+
     fun cancelReminder(eventId: Int) {
         val intent       = Intent(context, EventReminderReceiver::class.java)
         val pendingIntent = PendingIntent.getBroadcast(

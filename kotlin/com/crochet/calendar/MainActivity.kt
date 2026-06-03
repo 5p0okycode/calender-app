@@ -17,6 +17,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
@@ -54,10 +56,10 @@ import com.crochet.calendar.displays.PatternScreen
 import com.crochet.calendar.displays.ProjectsScreen
 import com.crochet.calendar.displays.addBirthdayDialog
 import com.crochet.calendar.displays.addHolidayDialog
+import com.crochet.calendar.ui.AppBarShape
 import com.crochet.calendar.ui.AppColors
 import com.crochet.calendar.ui.BeVietnamPro
 import com.crochet.calendar.ui.DashedDivider
-import com.crochet.calendar.ui.DipsyBottomBarShape
 import com.crochet.calendar.ui.GrainOverlay
 import com.crochet.calendar.ui.PlusJakartaSans
 import com.crochet.calendar.ui.stitchBorder
@@ -69,14 +71,16 @@ import kotlinx.coroutines.launch
 // ViewModel
 // ─────────────────────────────────────────────────────────────────────────────
 
-data class CalendarUiState(
+data class CalendarUiState( // actual = actual , cur= selected
     val monthLabel:     String   = "",
     val daysInMonth:    Int      = 30,
     val firstDayOfWeek: Int      = 0,
-    val actualDay:      Int      = -1,   // today's day number, -1 if not in viewed month
-    val curDay:         Int      = 1,    // selected day
-    val viewYear:       Int      = 0,
-    val viewMonth:      Int      = 0,
+    val actualDay:      Int      = -1,
+    val actualMonth:     Int      = 0,
+    val actualYear:      Int      = 0,
+    val curDay:         Int      = 1,
+    val curMonth:      Int      = 0,
+    val curYear:       Int      = 0,
     val daysWithEvents: Set<Int> = emptySet(),
     val slideDir:       Int      = 0    // -1 prev | 0 none | 1 next
 )
@@ -98,7 +102,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     // Events for the currently selected day
     val selectedDayEvents: StateFlow<List<Event>> = _uiState
-        .flatMapLatest { s -> eventDao.getEventsForDay(s.viewYear, s.viewMonth, s.curDay) }
+        .flatMapLatest { s -> eventDao.getEventsForDay(s.curYear, s.curMonth, s.curDay) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // All patterns
@@ -131,7 +135,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         // Keep event dots up to date when the viewed month changes
         viewModelScope.launch {
             _uiState
-                .map { it.viewYear to it.viewMonth }
+                .map { it.curYear to it.curMonth }
                 .distinctUntilChanged()
                 .collectLatest { (year, month) ->
                     eventDao.getDaysWithEvents(year, month)
@@ -152,6 +156,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _uiState.value = buildUiState(slideDir = -1)
     }
 
+    fun nextYear() {
+        logic.nextYear()
+        _uiState.value = buildUiState()
+    }
+
+    fun prevYear() {
+        logic.prevYear()
+        _uiState.value = buildUiState()
+    }
+
     fun selectDay(day: Int) {
         logic.curDay = day
         _uiState.update { it.copy(curDay = day) }
@@ -165,8 +179,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val event = Event(
                 name = name.trim(),
-                year = s.viewYear,
-                month = s.viewMonth,
+                year = s.curYear,
+                month = s.curMonth,
                 day = s.curDay,
                 time = time,
                 reminder = reminder,
@@ -198,11 +212,23 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun addHoliday(name: String, month: Int, day: Int, prefix: String) {
-        logic.addHoliday(name, month, day, prefix)
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val newHoliday = holiday(name.trim(), month, day, "🎉", prefix)
+            holidays.insertHoliday(newHoliday)
+            logic.saveCustomHolidays()
+            notificationHelper.holidayNotification(newHoliday, uiState.value.curYear)
+        }
     }
 
     fun addBirthday(name: String, month: Int, day: Int, mine: Boolean) {
-        logic.addBirthday(name, month, day, mine)
+        if (name.isBlank()) return
+        viewModelScope.launch {
+            val newBirthday = birthday(name.trim(), month, day, mine)
+            birthDays.insertBirthday(newBirthday)
+            logic.saveBirthdays()
+            notificationHelper.birthdayNotification(newBirthday, uiState.value.curYear)
+        }
     }
 
     fun deleteBirthday(bday: birthday) {
@@ -246,14 +272,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ── Private ───────────────────────────────────────────────────────────────
 
     private fun buildUiState(slideDir: Int = 0) = CalendarUiState(
-        monthLabel     = logic.monthLabel,
-        daysInMonth    = logic.daysInMonth,
+        monthLabel = logic.monthLabel,
+        daysInMonth = logic.daysInMonth,
         firstDayOfWeek = logic.firstDayOfWeek - 1, // JC is 1-based, grid needs 0-based
-        actualDay      = if (logic.curYear  == logic.todayYear &&
+        actualDay = if (logic.curYear  == logic.todayYear &&
                              logic.curMonth == logic.todayMonth) logic.todayDay else -1,
-        curDay         = logic.curDay,
-        viewYear       = logic.curYear,
-        viewMonth      = logic.curMonth,
+        curDay = logic.curDay,
+        curYear = logic.curYear,
+        curMonth = logic.curMonth,
+        actualYear = logic.todayYear,
+        actualMonth     = logic.todayMonth,
         slideDir       = slideDir
     )
 }
@@ -302,12 +330,12 @@ fun AppRoot(viewModel: MainViewModel) {
                     .wrapContentHeight()
             ) {
                 Surface(
-                    shape = DipsyBottomBarShape,
+                    shape = AppBarShape,
                     tonalElevation = 3.dp,
                     modifier = Modifier
                         .graphicsLayer {
                             shadowElevation = 8.dp.toPx()
-                            shape = DipsyBottomBarShape
+                            shape = AppBarShape
                             clip = true
                         }
                 ) {
@@ -361,7 +389,7 @@ fun AppRoot(viewModel: MainViewModel) {
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .graphicsLayer(scaleY = -1f)
-                        .offset(y = 12.dp)
+                        .offset(y = 18.dp)
                 )
             }
         }
@@ -394,14 +422,14 @@ fun CalendarTab(viewModel: MainViewModel) {
 
     var editingEvent by remember { mutableStateOf<Event?>(null) }
 
-    val dayHolidays by remember(uiState.viewMonth, uiState.curDay, uiState.viewYear) {
+    val dayHolidays by remember(uiState.curMonth, uiState.curDay, uiState.curYear) {
         derivedStateOf {
-            holidays.getForDay(uiState.viewMonth + 1, uiState.curDay, uiState.viewYear)
+            holidays.getForDay(uiState.curMonth + 1, uiState.curDay, uiState.curYear)
         }
     }
-    val dayBirthdays by remember(uiState.viewMonth, uiState.curDay) {
+    val dayBirthdays by remember(uiState.curMonth, uiState.curDay) {
         derivedStateOf {
-            birthDays.getBirthdayForDay(uiState.viewMonth + 1, uiState.curDay)
+            birthDays.getBirthdayForDay(uiState.curMonth + 1, uiState.curDay)
         }
     }
 
@@ -439,19 +467,34 @@ fun CalendarTab(viewModel: MainViewModel) {
                                 modifier = Modifier.size(28.dp)
                             )
                         }
+                            if (calState == CalState.HOLIDAYS){
+                            IconButton(onClick = { viewModel.prevYear() }) {
+                                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev Year", tint = AppColors.Tertiary)
+                            }
+                            }
+                            Text(
+                                text = when (calState) {
+                                    CalState.CALENDAR -> uiState.monthLabel
+                                    CalState.EVENTS -> "All Events"
+                                    CalState.HOLIDAYS -> "Holidays ${uiState.curYear}"
+                                    else -> "All Birthdays"
+                                },
+                                fontFamily = PlusJakartaSans,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 22.sp,
+                                color = AppColors.Primary,
+                            )
 
-                        Text(
-                            text = if (calState == CalState.CALENDAR) uiState.monthLabel
-                            else if (calState == CalState.EVENTS) "All Events"
-                            else if (calState == CalState.HOLIDAYS) "All Holidays"
-                            else "All Birthdays",
-                            fontFamily = PlusJakartaSans,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp,
-                            color = AppColors.Primary,
-                        )
+                        if(calState == CalState.HOLIDAYS) {
+                            IconButton(onClick = { viewModel.nextYear() }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    "Next Year",
+                                    tint = AppColors.Tertiary
+                                )
+                            }
+                        }
 
-                        // Right Section: View Toggle
                         IconButton(
                             onClick = {
                                 calState = if (calState == CalState.CALENDAR) CalState.EVENTS
@@ -485,7 +528,6 @@ fun CalendarTab(viewModel: MainViewModel) {
                             )
                         }
                     }
-
                     DashedDivider()
                 }
             },
@@ -522,8 +564,18 @@ fun CalendarTab(viewModel: MainViewModel) {
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    IconButton(onClick = { viewModel.prevYear() }) {
+                                        Text(
+                                            text = "«",
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 30.sp,
+                                            color = AppColors.Tertiary
+                                        )
+                                        //Icon(Icons.AutoMirrored.Filled.ArrowBack, "Prev Year", tint = AppColors.Tertiary)
+                                    }
                                     IconButton(onClick = { viewModel.prevMonth() }) {
-                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev", tint = AppColors.Tertiary)
+                                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Prev Month", tint = AppColors.Tertiary)
                                     }
 
                                     Button(
@@ -536,14 +588,25 @@ fun CalendarTab(viewModel: MainViewModel) {
                                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                                         modifier = Modifier.height(32.dp)
                                     ) {
-                                        Text("Change Background", fontSize = 11.sp, fontFamily = BeVietnamPro)
+                                        //thinking what to do with button
+                                        Text("Thinking", fontSize = 11.sp, fontFamily = BeVietnamPro)
                                     }
 
                                     IconButton(onClick = { viewModel.nextMonth() }) {
                                         Icon(
                                             Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                            "Next",
+                                            "Next Month",
                                             tint = AppColors.Tertiary)
+                                    }
+                                    IconButton(onClick = { viewModel.nextYear() }) {
+                                        Text(
+                                            text = "»",
+                                            fontFamily = PlusJakartaSans,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 30.sp,
+                                            color = AppColors.Tertiary
+                                        )
+                                        //Icon(Icons.AutoMirrored.Filled.ArrowForward, "Next Year", tint = AppColors.Tertiary)
                                     }
                                 }
 
@@ -567,17 +630,17 @@ fun CalendarTab(viewModel: MainViewModel) {
                                         curDay = uiState.curDay,
                                         daysWithEvents = remember(
                                             uiState.daysWithEvents,
-                                            uiState.viewMonth,
-                                            uiState.viewYear
+                                            uiState.curMonth,
+                                            uiState.curYear
                                         ) {
                                             derivedStateOf {
                                                 val dots = uiState.daysWithEvents.toMutableSet()
-                                                birthDays.all.filter { it.month == uiState.viewMonth + 1 }
+                                                birthDays.all.filter { it.month == uiState.curMonth + 1 }
                                                     .forEach { dots.add(it.day) }
-                                                holidays.saved.filter { it.month == uiState.viewMonth + 1 }
+                                                holidays.saved.filter { it.month == uiState.curMonth + 1 }
                                                     .forEach { dots.add(it.day) }
-                                                holidays.moveable(uiState.viewYear)
-                                                    .filter { it.month == uiState.viewMonth + 1 }
+                                                holidays.moveable(uiState.curYear)
+                                                    .filter { it.month == uiState.curMonth + 1 }
                                                     .forEach { dots.add(it.day) }
                                                 dots
                                             }
@@ -804,7 +867,7 @@ fun EventsScreen(viewModel: MainViewModel, onEditEvent: (Event) -> Unit) {
 @Composable
 fun BirthdayScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
-    val allBirthdays = birthDays.getUpcomingBirthdays(uiState.viewMonth,uiState.actualDay)
+    val allBirthdays = birthDays.getUpcomingBirthdays(uiState.curMonth,uiState.actualDay)
 
     val months = arrayOf(
         "January", "February", "March", "April", "May", "June",
@@ -869,23 +932,17 @@ fun BirthdayScreen(viewModel: MainViewModel) {
 @Composable
 fun HolidayScreen(viewModel: MainViewModel) {
     val uiState by viewModel.uiState.collectAsState()
-    val allHolidays = (holidays.getUpcomingHolidays(uiState.viewMonth,uiState.actualDay, uiState.viewYear)).distinctBy { it.name }
+    val allHolidays = if (uiState.curYear == uiState.actualYear) {
+        holidays.getUpcomingHolidays(uiState.actualMonth, uiState.actualDay, uiState.actualYear)
+    } else {
+        holidays.getAllHolidays(uiState.curYear)
+    }
 
     val months = arrayOf(
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
     )
-
-    if (allHolidays.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                "No Holidays left",
-                fontFamily = BeVietnamPro,
-                color = AppColors.OnSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
-        return
-    }
+     
 
     val grouped = allHolidays.groupBy { it.month }.toSortedMap()
 
@@ -893,37 +950,54 @@ fun HolidayScreen(viewModel: MainViewModel) {
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
     ) {
-        grouped.forEach { (month, list) ->
+        if (allHolidays.isEmpty()) {
             item {
-                Text(
-                    text = months[month - 1],
-                    fontFamily = PlusJakartaSans,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = AppColors.Primary,
-                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
-                )
-                DashedDivider()
-            }
-
-            val day = list.groupBy { it.day }.toSortedMap()
-            day.forEach { (day, dayHolidays) ->
-                item {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 64.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "Day $day",
-                        fontFamily = PlusJakartaSans,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
-                        color = AppColors.Tertiary,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                        "No Holidays left",
+                        fontFamily = BeVietnamPro,
+                        color = AppColors.OnSurfaceVariant.copy(alpha = 0.5f)
                     )
                 }
-                items(dayHolidays) { holiday ->
-                    HolidayRow(
-                        holiday = holiday,
-                        iconColor = AppColors.Secondary,
-                        onDelete = { viewModel.deleteHoliday(holiday) }
+            }
+        } else {
+            grouped.forEach { (month, list) ->
+                item {
+                    Text(
+                        text = months[month - 1],
+                        fontFamily = PlusJakartaSans,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = AppColors.Primary,
+                        modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
                     )
+                    DashedDivider()
+                }
+
+                val day = list.groupBy { it.day }.toSortedMap()
+                day.forEach { (day, dayHolidays) ->
+                    item {
+                        Text(
+                            text = "Day $day",
+                            fontFamily = PlusJakartaSans,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp,
+                            color = AppColors.Tertiary,
+                            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp)
+                        )
+                    }
+                    items(dayHolidays) { holiday ->
+                        HolidayRow(
+                            holiday = holiday,
+                            iconColor = AppColors.Secondary,
+                            onDelete = { viewModel.deleteHoliday(holiday) }
+                        )
+                    }
                 }
             }
         }

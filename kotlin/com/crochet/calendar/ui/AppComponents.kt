@@ -18,11 +18,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Custom Shape for the Bottom Bar
-// ─────────────────────────────────────────────────────────────────────────────
-
-val DipsyBottomBarShape = GenericShape { size, _ ->
+val AppBarShape = GenericShape { size, _ ->
     val w = size.width
     val h = size.height
     val startY = 0f
