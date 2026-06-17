@@ -1,4 +1,4 @@
-# Crochet Calendar App
+# Crochet Calendar App(No clear name yet)
 
 An Android Calendar app designed to help crochet enthusiasts manage their projects and patterns, and schedule within a specialized calendar interface.
 
@@ -48,9 +48,9 @@ erDiagram
 ```
 
 ### Key Relationships:
-*   **Patterns & Components**: A `Pattern` acts as a blueprint. It contains multiple `Components` (e.g., "Sleeve", "Body"), each defining specific steps.
+*   **Patterns & Components**: A `Pattern` acts as a blueprint. It contains multiple `Components` (e.g., "Sleeve", "Body"), each with defined specific steps.
 *   **Patterns & Projects**: When you start a new `Project`, you link it to a `Pattern`. The project tracks your progress (`curComp`, `compSteps`) based on that pattern's structure.
-*   **Projects & Events**: `Events` on the calendar can be optionally linked to a specific `Project`, allowing you to schedule "Crochet Sessions" or deadlines.
+*   **Projects & Events**: `Events` on the calendar can be optionally linked to a specific `Project`, allowing you to schedule deadlines for projects.
 
 ---
 
@@ -64,7 +64,7 @@ The project follows a standard Android Kotlin structure with a focus on **Jetpac
 
 ### 2. UI & Logic Layer (`com.crochet.calendar`)
 *   **`MainActivity.kt`**: The entry point of the app. It houses the `MainViewModel` (which manages the app state) and the `AppRoot` navigation setup.
-*   **`CalendarLogic.kt`**: Contains the business logic for date calculations, month/year navigation, and specialized holiday logic (including "moveable" holidays like Easter).
+*   **`CalendarLogic.kt`**: Contains the logic for date calculations, month/year navigation, and specialized holiday/birthday logic.
 *   **`displays/`**: This directory contains specialized Jetpack Compose screens:
     *   **`CalendarDisplay.kt`**: The main calendar grid and event dialogs.
     *   **`ProjectsScreen.kt`**: View and manage active crochet projects.
@@ -72,7 +72,7 @@ The project follows a standard Android Kotlin structure with a focus on **Jetpac
 
 ### 3. Services (`com.crochet.calendar`)
 *   **`notifications.kt`**: Handles the `AlarmManager` logic for scheduling event reminders, birthdays, and holiday notifications.
-*   **`Prefs.kt`**: Manages lightweight persistence (like custom holidays and birthdays) using `SharedPreferences`.
+*   **`Prefs.kt`**: Manages lightweight persistence using `SharedPreferences`.
 
 ### 4. Styling (`com.crochet.calendar.ui`)
-*   Custom UI components such as `DashedDivider`, specialized shapes, and the `AppColors` theme are defined here to ensure a consistent, "crafty" aesthetic across the app.
+*   Custom UI components, specialized shapes, and the `AppColors` theme are defined here to ensure a consistent aesthetic across the app.
