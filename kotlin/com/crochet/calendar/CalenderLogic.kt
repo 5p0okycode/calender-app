@@ -2,7 +2,9 @@ package com.crochet.calendar
 
 import android.content.Context
 import androidx.compose.runtime.mutableStateListOf
+import androidx.core.text.util.LocalePreferences
 import java.util.Calendar as JC
+import java.time.LocalDateTime as jt
 
 class CalendarLogic(context: Context? = null) {
     private val appPrefs = context?.let { Prefs(it) }
@@ -26,8 +28,8 @@ class CalendarLogic(context: Context? = null) {
 
     // Currently-viewed Day
 
-    var curMonth: Int
-        private set //0 based again
+    var curMonth: Int = 0
+        set(value) { field = value.coerceIn(0, 11) } //0 based again
 
     var curDay: Int = 1
         set(value) { field = value.coerceIn(1, daysInMonth) }
@@ -113,6 +115,18 @@ class CalendarLogic(context: Context? = null) {
         }
 
 
+    val firstDayNumOfWeek: Int
+        get() {
+            val offset = firstDayOfWeek - 1
+            return if (offset == 0) 1
+            else monthLen[((curMonth - 1) + 12) % 12] - offset + 1
+        }
+
+    val firstDayNumOfMonth: Int //first day num for a month
+        get() {
+            return if (firstDayOfWeek == 0) 1 else monthLen[(curMonth-1)]-firstDayOfWeek+1
+        }
+    
     companion object {
         fun isLeapYear(year: Int): Boolean =
             year % 4 == 0 && (year % 100 != 0 || year % 400 == 0)

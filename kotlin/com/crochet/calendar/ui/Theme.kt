@@ -45,7 +45,7 @@ object AppColors {
     val OnSurfaceVariant    = Color(0xFF685F3E)
     val SurfaceVariant      = Color(0xFFF0E2B9)
 
-    val Primary             = Color(0xFF526447)
+    val Primary             = Color(0xFF405334)
     val OnPrimary           = Color(0xFFECFFDD)
     val PrimaryContainer    = Color(0xFFD4E9C4)
     val OnPrimaryContainer  = Color(0xFF45573B)
@@ -69,4 +69,18 @@ object AppColors {
 
     val deleteColor = Color(0xFF97150D)
     val copyColor = Color(0xFF5B92AA)
+    val MonthColors = listOf(
+        Color(0xFFAEC6CF) to Color(0xFFE0F2F1), // January:   Ice Blue & Frost
+        Color(0xFF835252) to Color(0xFFF48FB1), // February:  Dusty Rose & Pink
+        Color(0xFFA5D6A7) to Color(0xFFFFF59D), // March:     Sage & Pale Yellow
+        Color(0xFFCE93D8) to Color(0xFFF8BBD0), // April:     Lavender & Blossom
+        Color(0xFF81C784) to Color(0xFFFFEE58), // May:       Meadow & Buttercup
+        Color(0xFF4FC3F7) to Color(0xFFFFD54F), // June:      Sky & Sun
+        Color(0xFF0288D1) to Color(0xFFFCE7D2), // July:      Ocean & Sand
+        Color(0xFFFFB74D) to Color(0xFFE57373), // August:    Orange & Soft Red
+        Color(0xFF689F38) to Color(0xFFD32F2F), // September: Olive & Apple
+        Color(0xFFEF6C00) to Color(0xFF3E2723), // October:   Pumpkin & Chocolate
+        Color(0xFFBF360C) to Color(0xFFFFAB00), // November:  Rust & Amber
+        Color(0xFF2E7D32) to Color(0xFFC62828)  // December:  Holly & Berry
+    )
 }

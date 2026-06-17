@@ -1,6 +1,6 @@
 # Crochet Calendar App
 
-An Android application designed to help crochet enthusiasts manage their projects, patterns, and schedule within a specialized calendar interface.
+An Android Calendar app designed to help crochet enthusiasts manage their projects and patterns, and schedule within a specialized calendar interface.
 
 ## Database Schema & Relationships
 

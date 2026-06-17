@@ -1,4 +1,4 @@
-package com.crochet.calendar.displays
+package com.crochet.calendar.screens
 
 import androidx.compose.animation.core.EaseOutCubic
 import androidx.compose.animation.core.animateFloatAsState

@@ -35,14 +35,14 @@ class Converters {
     indices = [Index("projectId")])
 data class Event(
     @PrimaryKey(autoGenerate = true)
-    val id:        Int           = 0,
-    val name:      String,
-    val year:      Int,
-    val month:     Int,
-    val day:       Int,
-    val time:      String?        = "", //optional
-    val reminder:  Boolean       = false,
-    val projectId: Int?          = null   // optional
+    val id: Int = 0,
+    val name: String,
+    val year: Int,
+    val month: Int,
+    val day: Int,
+    val time: String? = "", //optional
+    val reminder: Boolean = false,
+    val projectId: Int? = null   // optional
 )
 
 @Entity(
@@ -103,7 +103,7 @@ data class Component(
         return copy(steps = newSteps)
     }
 
-    fun duplicateStep(i: Int): Component = //made it because i was lazy(pls don't judge)
+    fun duplicateStep(i: Int): Component = //made it because I was lazy(pls don't judge)
         addStep(steps.get(i),i)
 
     fun moveStep(i: Int, Dir: Boolean): Component { // archaeic method

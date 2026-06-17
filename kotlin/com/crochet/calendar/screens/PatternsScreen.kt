@@ -1,4 +1,4 @@
-package com.crochet.calendar.displays
+package com.crochet.calendar.screens
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
@@ -64,7 +64,8 @@ fun PatternScreen(viewModel: MainViewModel) {
         PatternDetailScreen(
             pwc       = selectedPattern!!,
             viewModel = viewModel,
-            onBack    = { selectedPattern = null }
+            onBack    = { selectedPattern = null },
+            onDelete = { viewModel.deletePattern(selectedPattern!!)}
         )
         return
     }
@@ -185,8 +186,8 @@ fun PatternScreen(viewModel: MainViewModel) {
 fun PatternCard(
     pwc: Pattern,
     componentCount: Int,
-    onClick:        () -> Unit,
-    onDelete:       () -> Unit
+    onClick: () -> Unit,
+    onDelete: () -> Unit
 ) {
     StitchedCard(
         modifier = Modifier.fillMaxWidth(),
@@ -248,18 +249,6 @@ fun PatternCard(
                     )
                 }
             }
-
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    Icons.Outlined.Close,
-                    contentDescription = "Delete pattern",
-                    tint = AppColors.OutlineVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
         }
     }
 }
@@ -273,7 +262,8 @@ fun PatternCard(
 fun PatternDetailScreen(
     pwc: Pattern,
     viewModel: MainViewModel,
-    onBack:    () -> Unit
+    onBack:    () -> Unit,
+    onDelete: () -> Unit
 ) {
     var showAddComponent by remember { mutableStateOf(false) }
     var editingComponent by remember { mutableStateOf<Component?>(null) }
@@ -313,6 +303,19 @@ fun PatternDetailScreen(
                             color      = Color(0xFF2D5016),
                             modifier   = Modifier.weight(1f)
                         )
+                        IconButton(
+                            onClick = {
+                                onDelete()
+                                onBack() },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Delete,
+                                contentDescription = "Delete pattern",
+                                tint = AppColors.deleteColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                     DashedDivider()
                 }
@@ -613,7 +616,7 @@ fun PatternEmptyState(modifier: Modifier = Modifier) {
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text       = "Tap + to save your first crochet pattern",
+            text       = "Tap + to save your first pattern",
             fontFamily = BeVietnamPro,
             fontSize   = 13.sp,
             color      = AppColors.OnSurfaceVariant.copy(alpha = 0.5f)

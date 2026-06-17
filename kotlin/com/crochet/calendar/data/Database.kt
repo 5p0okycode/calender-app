@@ -11,11 +11,14 @@ interface EventDao {
     @Query("SELECT * FROM events ORDER BY year DESC, month DESC, day ASC, time ASC")
     fun getAllEvents(): Flow<List<Event>>
 
-    @Query("SELECT * FROM events WHERE year=:year AND month>=:month AND day>=:day ORDER BY time ASC, day ASC")
+    @Query("SELECT * FROM events WHERE (year > :year) OR (year = :year AND month > :month) OR (year = :year AND month = :month AND day >= :day) ORDER BY year ASC, month ASC, day ASC, time ASC")
     fun getAllUpcomingEvents(year: Int, month: Int, day: Int): Flow<List<Event>>
 
     @Query("SELECT DISTINCT day FROM events WHERE year=:year AND month=:month")
     fun getDaysWithEvents(year: Int, month: Int): Flow<List<Int>>
+
+    @Query("SELECT DISTINCT month, day FROM events WHERE year = :year")
+    fun getDaysWithEventsForYear(year: Int): Flow<List<MonthDay>>
 
     @Query("SELECT DISTINCT day FROM events WHERE year=:year AND month=:month AND reminder")
     fun getDaysWithReminders(year: Int, month: Int): Flow<List<Int>>
@@ -38,9 +41,9 @@ interface ProjectDao {
 
     @Transaction
     @Query("SELECT * FROM projects WHERE id = :id")
-    fun getProjectById(id: Int): Project?
+    suspend fun getProjectById(id: Int): Project?
 
-    @Query("SELECT * FROM components WHERE patternId = :patternID")
+    @Query("SELECT * FROM components WHERE patternId = :patternID ORDER BY id ASC")
     suspend fun getComponents(patternID: Int): List<Component>
 
 
@@ -148,3 +151,8 @@ abstract class CalendarDatabase : RoomDatabase() {
     abstract fun patternDao(): PatternDao
     abstract fun componentDao():      ComponentDao
 }
+
+data class MonthDay(
+    val month: Int,
+    val day: Int
+)

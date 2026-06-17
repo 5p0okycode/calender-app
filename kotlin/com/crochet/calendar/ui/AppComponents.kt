@@ -1,22 +1,27 @@
 package com.crochet.calendar.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.crochet.calendar.R
 
 val AppBarShape = GenericShape { size, _ ->
     val w = size.width
@@ -178,40 +183,32 @@ fun GrainOverlay(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize())
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Previews
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**@Preview(showBackground = true, backgroundColor = 0xFFFFF8EF) // Matches AppColors.Background
 @Composable
-fun GrannySquarePreview() {
-    Column(
-        modifier = Modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+fun GrannySquare(
+    color1: Color,
+    color2: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
     ) {
-        Text("Outer Layer", color = AppColors.OnSurface)
         Image(
-            painter = painterResource(id = R.drawable.ic_granny_square),
-            contentDescription = null,
-            modifier = Modifier.size(100.dp)
-        )
-
-        Text("Middle Layer", color = AppColors.OnSurface)
-        Image(
-            painter = painterResource(id = R.drawable.ic_granny_square),
-            contentDescription = null,
+            painter = painterResource(id = R.drawable.granny_square_outer),
+            contentDescription = "Outer Layer",
             modifier = Modifier.size(100.dp),
-            colorFilter = ColorFilter.tint(Color(0xFF8D6E63))
+            colorFilter = ColorFilter.tint(color1)
         )
-
-        Text("Inner Layer", color = AppColors.OnSurface)
         Image(
-            painter = painterResource(id = R.drawable.ic_granny_square_rounds),
-            contentDescription = null,
+            painter = painterResource(id = R.drawable.granny_square_middle),
+            contentDescription = "Middle Layer",
             modifier = Modifier.size(100.dp),
-            colorFilter = ColorFilter.tint(Color(0xFF8D6E63))
+            colorFilter = ColorFilter.tint(color2)
+        )
+        Image(
+            painter = painterResource(id = R.drawable.granny_square_inner),
+            contentDescription = "Inner Layer",
+            modifier = Modifier.size(100.dp),
+            colorFilter = ColorFilter.tint(color1)
         )
     }
 }
-**/
